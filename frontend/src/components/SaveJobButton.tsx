@@ -1,12 +1,13 @@
 import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   createApplication,
   getAllApplications,
   type Application,
   type ApplicationStatus,
 } from '../api/applications';
+import { useAuth } from '../auth/AuthState';
 
 const STATUS_LABELS: Record<ApplicationStatus, string> = {
   saved: 'Saved',
@@ -45,14 +46,19 @@ function getSaveErrorMessage(error: unknown): string {
 }
 
 function SaveJobButton({ jobId }: SaveJobButtonProps) {
+  const { isAuthenticated, status, user } = useAuth();
+  const location = useLocation();
   const [trackedApplication, setTrackedApplication] = useState<Application | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [checkedKey, setCheckedKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const submissionPending = useRef(false);
 
   useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
     let active = true;
+    const requestKey = `${user.id}:${jobId}`;
 
     async function checkTracker() {
       try {
@@ -69,7 +75,7 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
         console.error(error);
       } finally {
         if (active) {
-          setChecking(false);
+          setCheckedKey(requestKey);
         }
       }
     }
@@ -78,10 +84,15 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
     return () => {
       active = false;
     };
-  }, [jobId]);
+  }, [jobId, isAuthenticated, user]);
+
+  const currentKey = user ? `${user.id}:${jobId}` : null;
+  const checking = status === 'initializing' ||
+    (isAuthenticated && checkedKey !== currentKey);
+  const currentApplication = checkedKey === currentKey ? trackedApplication : null;
 
   async function saveJob() {
-    if (submissionPending.current || trackedApplication) {
+    if (submissionPending.current || currentApplication) {
       return;
     }
 
@@ -118,10 +129,21 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
 
   return (
     <div className="save-job-control">
-      {trackedApplication ? (
+      {status === 'anonymous' ? (
+        <div className="save-job-control__tracked">
+          <strong>Want to track this job?</strong>
+          <span>Sign in to save it to your private application tracker.</span>
+          <Link
+            to="/login"
+            state={{ from: `${location.pathname}${location.search}` }}
+          >
+            Sign in to save
+          </Link>
+        </div>
+      ) : currentApplication ? (
         <div className="save-job-control__tracked">
           <strong>Already tracked</strong>
-          <span>Status: {STATUS_LABELS[trackedApplication.status]}</span>
+          <span>Status: {STATUS_LABELS[currentApplication.status]}</span>
           <Link to="/applications">View in application tracker</Link>
         </div>
       ) : (
@@ -133,7 +155,7 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
           {checking ? 'Checking tracker…' : saving ? 'Saving…' : 'Save to tracker'}
         </button>
       )}
-      {message && (
+      {message && isAuthenticated && (
         <p className="save-job-control__message" role="status" aria-live="polite">
           {message}
         </p>

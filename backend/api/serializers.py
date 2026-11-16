@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Job, Application
+
 
 class JobSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,12 +17,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = [
-            'id', 'job', 'job_title', 'company',
+            'id', 'owner', 'job', 'job_title', 'company',
             'status', 'applied_date', 'notes',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'job_title', 'company',
+            'id', 'owner', 'job_title', 'company',
             'created_at', 'updated_at'
         ]
 

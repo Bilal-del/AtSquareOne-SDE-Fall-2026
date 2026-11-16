@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_yasg',
     
@@ -105,23 +106,44 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_THROTTLE_RATES': {
+        'auth_login': '20/minute',
+        'auth_register': '10/hour',
+    },
 }
 
 # JWT Settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': False,
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+# Browser security settings
+FRONTEND_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'FRONTEND_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173',
+    ).split(',')
+    if origin.strip()
 ]
 
+CORS_ALLOWED_ORIGINS = FRONTEND_ORIGINS
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = FRONTEND_ORIGINS
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+AUTH_REFRESH_COOKIE_NAME = 'squareone_refresh'
+AUTH_REFRESH_COOKIE_PATH = '/api/auth/'
+AUTH_REFRESH_COOKIE_SAMESITE = 'Lax'
+AUTH_COOKIE_SECURE = os.environ.get(
+    'AUTH_COOKIE_SECURE',
+    'False' if DEBUG else 'True',
+).lower() == 'true'
+CSRF_COOKIE_SECURE = AUTH_COOKIE_SECURE

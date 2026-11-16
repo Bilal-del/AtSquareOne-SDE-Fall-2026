@@ -7,11 +7,13 @@ from .models import Job, Application
 from .serializers import JobSerializer, ApplicationSerializer
 
 class JobViewSet(viewsets.ModelViewSet):
+    permission_classes = [AllowAny]
     queryset = Job.objects.all().order_by('-created_at')
     serializer_class = JobSerializer
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
+    permission_classes = [AllowAny]
     queryset = Application.objects.all().order_by('-created_at')
     serializer_class = ApplicationSerializer
 

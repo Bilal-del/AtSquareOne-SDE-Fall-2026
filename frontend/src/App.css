@@ -74,7 +74,7 @@
   flex: 1;
 }
 
-.app-main > section:not(.job-search-page):not(.job-details-page) {
+.app-main > section:not(.job-search-page):not(.job-details-page):not(.auth-page) {
   width: min(100% - 32px, 1360px);
   margin: 0 auto;
   padding: 40px 0;
@@ -145,14 +145,38 @@
   font-weight: 700;
 }
 
-.site-workspace {
-  display: flex;
+.site-account,
+.site-auth-links,
+.site-account-loading {
   margin-left: auto;
+}
+
+.site-account {
+  position: relative;
+}
+
+.site-account__trigger {
+  display: flex;
+  padding: 4px;
   align-items: center;
-  gap: 28px;
+  gap: 12px;
+  border: 0;
+  background: transparent;
   color: var(--color-text-secondary);
   font-size: 13px;
   white-space: nowrap;
+}
+
+.site-account__trigger:hover,
+.site-account__trigger[aria-expanded='true'] {
+  background: var(--color-accent);
+  color: var(--color-primary);
+}
+
+.site-account__username {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .site-workspace__avatar {
@@ -166,6 +190,128 @@
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 700;
+}
+
+.site-auth-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.site-auth-links__register {
+  padding: 9px 13px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.site-auth-links__register:hover {
+  background: var(--color-primary-hover);
+  color: #fff;
+}
+
+.site-account-loading {
+  width: 96px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--color-accent), #f7faf8, var(--color-accent));
+  background-size: 200% 100%;
+  animation: account-loading 1.2s linear infinite;
+}
+
+@keyframes account-loading {
+  to { background-position: -200% 0; }
+}
+
+.account-dropdown {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 280px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 16px 40px rgba(20, 46, 43, 0.14);
+}
+
+.account-card {
+  display: flex;
+  padding: 10px;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-card__avatar {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.account-card__identity {
+  display: grid;
+  min-width: 0;
+}
+
+.account-card__identity small {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+
+.account-card__identity strong {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+.account-logout {
+  width: 100%;
+  margin-top: 8px;
+  border-color: var(--color-border);
+  background: transparent;
+  color: #8d302c;
+  text-align: left;
+}
+
+.account-logout:hover {
+  border-color: #edc5c2;
+  background: #fff3f2;
+}
+
+.account-logout:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.account-error {
+  margin: 8px 4px;
+  color: #8d302c;
+  font-size: 11px;
+}
+
+.account-drawer-backdrop {
+  display: none;
+}
+
+.route-loading {
+  display: grid;
+  min-height: 45vh;
+  place-items: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
 }
 
 .site-footer {
@@ -200,8 +346,71 @@
     gap: 24px;
   }
 
-  .site-workspace__label {
+  .site-account__username {
     display: none;
+  }
+
+  .site-auth-links {
+    gap: 10px;
+  }
+
+  .site-auth-links__register {
+    display: none;
+  }
+
+  .account-dropdown {
+    display: none;
+  }
+
+  .account-drawer-backdrop {
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(20, 46, 43, 0.35);
+  }
+
+  .account-drawer {
+    width: min(88vw, 340px);
+    height: 100%;
+    padding: 22px;
+    background: var(--color-surface);
+    box-shadow: -14px 0 38px rgba(20, 46, 43, 0.18);
+  }
+
+  .account-drawer__heading {
+    display: flex;
+    margin-bottom: 22px;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 18px;
+  }
+
+  .account-drawer__close {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    place-items: center;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    font-size: 25px;
+    line-height: 1;
+  }
+
+  .account-drawer__close:hover {
+    background: var(--color-accent);
+  }
+
+  .account-card--drawer {
+    padding: 16px 0 20px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .account-logout--drawer {
+    margin-top: 20px;
   }
 
   .site-footer {
@@ -210,7 +419,7 @@
     gap: 6px;
   }
 
-  .app-main > section:not(.job-search-page):not(.job-details-page) {
+  .app-main > section:not(.job-search-page):not(.job-details-page):not(.auth-page) {
     padding: 24px 0;
   }
 }

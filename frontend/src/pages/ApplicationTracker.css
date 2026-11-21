@@ -24,6 +24,12 @@
     font-size: 15px;
 }
 
+.application-tracker-heading__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .application-tracker-demo-badge,
 .application-tracker-state__badge {
     display: inline-flex;
@@ -145,31 +151,6 @@
 
 .application-tracker-clear:hover {
     background: var(--color-accent);
-}
-
-.application-tracker-planned-action {
-    display: inline-flex;
-    min-height: 40px;
-    padding: 8px 12px;
-    align-items: center;
-    border: 1px dashed var(--color-border);
-    border-radius: 8px;
-    background: var(--color-surface);
-    color: var(--color-text-secondary);
-    font-size: 13px;
-    gap: 8px;
-    white-space: nowrap;
-}
-
-.application-tracker-planned-action span {
-    padding: 3px 5px;
-    border-radius: 5px;
-    background: var(--color-accent);
-    color: var(--color-primary);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
 }
 
 .application-table-wrap {
@@ -446,6 +427,10 @@
   box-shadow: 0 20px 60px rgba(20, 46, 43, 0.22);
 }
 
+.application-dialog--wide {
+  width: min(calc(100% - 32px), 760px);
+}
+
 .application-dialog::backdrop {
   background: rgba(20, 46, 43, 0.48);
 }
@@ -505,6 +490,41 @@
   font-size: 13px;
   font-weight: 700;
   gap: 7px;
+}
+
+.application-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.application-dialog__field--wide {
+  grid-column: 1 / -1;
+}
+
+.application-duplicate-check {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.application-duplicate-check > div {
+  padding: 12px;
+  border: 1px solid #d8c58d;
+  border-radius: 8px;
+  background: #fbf6e8;
+}
+
+.application-duplicate-check strong {
+  color: #755d1d;
+}
+
+.application-duplicate-check p {
+  margin: 3px 0;
+}
+
+.application-duplicate-check ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
 }
 
 .application-dialog__field input,
@@ -611,6 +631,11 @@
         gap: 14px;
     }
 
+    .application-tracker-heading__actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
     .application-tracker-heading h1 {
         font-size: 27px;
     }
@@ -631,8 +656,7 @@
     .application-tracker-toolbar,
     .application-tracker-search,
     .application-tracker-search label,
-    .application-tracker-filter,
-    .application-tracker-planned-action {
+    .application-tracker-filter {
         width: 100%;
     }
 
@@ -649,10 +673,6 @@
 
     .application-tracker-search label {
         flex: 1;
-    }
-
-    .application-tracker-planned-action {
-        justify-content: center;
     }
 
     .application-table-wrap {
@@ -770,6 +790,14 @@
 
   .application-dialog {
     padding: 22px 18px;
+  }
+
+  .application-dialog__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-dialog__field--wide {
+    grid-column: auto;
   }
 
   .application-dialog__actions {

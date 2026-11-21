@@ -201,6 +201,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Frontend test output
+frontend/coverage/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

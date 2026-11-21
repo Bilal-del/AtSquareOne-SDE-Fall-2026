@@ -4,6 +4,7 @@ import {
     getAllApplications,
     type Application,
 } from '../api/applications';
+import ApplicationCreateDialog from '../components/ApplicationCreateDialog';
 import ApplicationDeleteDialog from '../components/ApplicationDeleteDialog';
 import ApplicationEditDialog from '../components/ApplicationEditDialog';
 import {
@@ -58,6 +59,7 @@ function ApplicationTracker() {
     const [retryKey, setRetryKey] = useState(0);
     const [editingApplication, setEditingApplication] = useState<Application | null>(null);
     const [deletingApplication, setDeletingApplication] = useState<Application | null>(null);
+    const [creatingApplication, setCreatingApplication] = useState(false);
     const [operationMessage, setOperationMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -164,6 +166,18 @@ function ApplicationTracker() {
         setOperationMessage(`${updatedApplication.job_title} was updated successfully.`);
     }
 
+    function handleApplicationCreated(createdApplication: Application) {
+        setApplications((currentApplications) => [
+            createdApplication,
+            ...currentApplications,
+        ]);
+        setCreatingApplication(false);
+        setCurrentPage(1);
+        setOperationMessage(
+            `${createdApplication.job_title} was added to your tracker.`,
+        );
+    }
+
     function handleApplicationMissing(id: number) {
         setApplications((currentApplications) =>
             currentApplications.filter((application) => application.id !== id),
@@ -193,11 +207,22 @@ function ApplicationTracker() {
             <div className="application-tracker-heading">
                 <div>
                     <h1>Keep your next move in sight.</h1>
-                    <p>Track every demo opportunity from saved job to offer.</p>
+                    <p>Track every opportunity from saved job to offer.</p>
                 </div>
-                <span className="application-tracker-demo-badge">
-                    Demo · Database data
-                </span>
+                <div className="application-tracker-heading__actions">
+                    <span className="application-tracker-demo-badge">
+                        Demo · Database data
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setOperationMessage(null);
+                            setCreatingApplication(true);
+                        }}
+                    >
+                        Add application
+                    </button>
+                </div>
             </div>
 
             {loading && (
@@ -232,8 +257,7 @@ function ApplicationTracker() {
                     <span className="application-tracker-state__badge">No records</span>
                     <h2>No applications are being tracked yet.</h2>
                     <p>
-                        Fictional application records added to SquareOne will appear
-                        here.
+                        Applications you add or save from SquareOne will appear here.
                     </p>
                 </div>
             )}
@@ -319,13 +343,6 @@ function ApplicationTracker() {
                             </button>
                         )}
 
-                        <div
-                            className="application-tracker-planned-action"
-                            aria-label="Add application controls are planned"
-                        >
-                            <span>Planned</span>
-                            Add application
-                        </div>
                     </div>
 
                     {filteredApplications.length === 0 ? (
@@ -389,6 +406,10 @@ function ApplicationTracker() {
                                                             <Link to={`/jobs/${application.job}`}>
                                                                 View job
                                                             </Link>
+                                                        ) : application.source === 'manual' ? (
+                                                            <span className="application-table__unavailable">
+                                                                Manual entry
+                                                            </span>
                                                         ) : (
                                                             <span className="application-table__unavailable">
                                                                 Job unavailable
@@ -493,6 +514,12 @@ function ApplicationTracker() {
                     onClose={() => setEditingApplication(null)}
                     onMissing={handleApplicationMissing}
                     onUpdated={handleApplicationUpdated}
+                />
+            )}
+            {creatingApplication && (
+                <ApplicationCreateDialog
+                    onClose={() => setCreatingApplication(false)}
+                    onCreated={handleApplicationCreated}
                 />
             )}
             {deletingApplication && (

@@ -1,4 +1,8 @@
 import apiClient from './client';
+import type {
+  EmploymentType,
+  WorkArrangement,
+} from '../constants/applicationFields';
 import type { ApplicationStatus } from '../constants/applicationStatuses';
 
 export type { ApplicationStatus } from '../constants/applicationStatuses';
@@ -8,23 +12,73 @@ export interface Application {
     job: number | null;
     job_title: string;
     company: string;
+    source: 'squareone' | 'manual';
+    location: string;
+    external_job_url: string;
+    work_arrangement: WorkArrangement;
+    employment_type: EmploymentType;
     status: ApplicationStatus;
     applied_date: string | null;
     notes: string;
+    archived_at: string | null;
     created_at: string;
     updated_at: string;
 }
 
-export interface CreateApplicationInput {
-  job: number;
+interface ApplicationPersonalFields {
   status?: ApplicationStatus;
   applied_date?: string | null;
+  location?: string;
+  external_job_url?: string;
+  work_arrangement?: WorkArrangement;
+  employment_type?: EmploymentType;
   notes?: string;
 }
 
+export interface CreateLinkedApplicationInput extends ApplicationPersonalFields {
+  job: number;
+}
+
+export interface CreateManualApplicationInput extends ApplicationPersonalFields {
+  job?: null;
+  job_title: string;
+  company: string;
+}
+
+export type CreateApplicationInput =
+  | CreateLinkedApplicationInput
+  | CreateManualApplicationInput;
+
 export type UpdateApplicationInput = Partial<
-  Pick<Application, 'status' | 'applied_date' | 'notes'>
+  Pick<
+    Application,
+    | 'job_title'
+    | 'company'
+    | 'location'
+    | 'external_job_url'
+    | 'work_arrangement'
+    | 'employment_type'
+    | 'status'
+    | 'applied_date'
+    | 'notes'
+  >
 >;
+
+export interface ApplicationDuplicate {
+  id: number;
+  job: number | null;
+  job_title: string;
+  company: string;
+  source: Application['source'];
+  status: ApplicationStatus;
+  archived_at: string | null;
+}
+
+export interface ApplicationListFilters {
+  archive_state?: 'active' | 'archived' | 'all';
+  status?: ApplicationStatus;
+  search?: string;
+}
 
 export interface PaginatedApplications {
     count: number;
@@ -33,8 +87,12 @@ export interface PaginatedApplications {
     results: Application[];
 }
 
-export async function getApplications(): Promise<PaginatedApplications> {
-    const response = await apiClient.get<PaginatedApplications>('/applications/');
+export async function getApplications(
+  filters?: ApplicationListFilters,
+): Promise<PaginatedApplications> {
+    const response = await apiClient.get<PaginatedApplications>('/applications/', {
+      params: filters,
+    });
     return response.data;
 }
 
@@ -66,10 +124,12 @@ function getSafePaginationPath(paginationUrl: string): string {
     return `/applications/${nextPageUrl.search}`;
 }
 
-export async function getAllApplications(): Promise<Application[]> {
+export async function getAllApplications(
+  filters?: ApplicationListFilters,
+): Promise<Application[]> {
     const applications: Application[] = [];
     const visitedPages = new Set<string>(['/applications/']);
-    let page = await getApplications();
+    let page = await getApplications(filters);
     let pageCount = 1;
 
     applications.push(...page.results);
@@ -119,4 +179,35 @@ export async function updateApplication(
 
 export async function deleteApplication(id: number): Promise<void> {
   await apiClient.delete(`/applications/${id}/`);
+}
+
+export interface DuplicateLookupInput {
+  job?: number;
+  job_title?: string;
+  company?: string;
+}
+
+export async function findApplicationDuplicates(
+  input: DuplicateLookupInput,
+  signal?: AbortSignal,
+): Promise<ApplicationDuplicate[]> {
+  const response = await apiClient.get<ApplicationDuplicate[]>(
+    '/applications/duplicates/',
+    { params: input, signal },
+  );
+  return response.data;
+}
+
+export async function archiveApplication(id: number): Promise<Application> {
+  const response = await apiClient.post<Application>(
+    `/applications/${id}/archive/`,
+  );
+  return response.data;
+}
+
+export async function restoreApplication(id: number): Promise<Application> {
+  const response = await apiClient.post<Application>(
+    `/applications/${id}/restore/`,
+  );
+  return response.data;
 }

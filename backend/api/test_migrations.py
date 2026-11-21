@@ -107,3 +107,55 @@ class ApplicationStatusContractMigrationTests(TransactionTestCase):
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
+
+
+class ApplicationDomainFoundationMigrationTests(TransactionTestCase):
+    migrate_from = [('api', '0006_application_status_contract')]
+    migrate_to = [('api', '0007_application_domain_foundation')]
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+
+        User = old_apps.get_model('auth', 'User')
+        Job = old_apps.get_model('api', 'Job')
+        Application = old_apps.get_model('api', 'Application')
+        owner = User.objects.create(username='domain_migration_owner')
+        job = Job.objects.create(
+            title='Existing Role',
+            company='Existing Company',
+            location='Chicago, IL',
+            description='An application that predates Milestone 2.',
+        )
+        self.application_id = Application.objects.create(
+            owner=owner,
+            job=job,
+            job_title=job.title,
+            company=job.company,
+            status='offered',
+            notes='Existing notes must remain unchanged.',
+        ).pk
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_to)
+        self.apps = executor.loader.project_state(self.migrate_to).apps
+
+    def test_existing_application_remains_active_and_squareone_linked(self):
+        Application = self.apps.get_model('api', 'Application')
+        application = Application.objects.get(pk=self.application_id)
+
+        self.assertEqual(application.status, 'offered')
+        self.assertEqual(application.notes, 'Existing notes must remain unchanged.')
+        self.assertEqual(application.source, 'squareone')
+        self.assertIsNone(application.archived_at)
+        self.assertEqual(application.location, '')
+        self.assertEqual(application.external_job_url, '')
+        self.assertEqual(application.work_arrangement, '')
+        self.assertEqual(application.employment_type, '')
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()

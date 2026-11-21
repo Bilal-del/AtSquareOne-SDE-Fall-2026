@@ -16,6 +16,10 @@ class Job(models.Model):
 
 
 class Application(models.Model):
+    class Source(models.TextChoices):
+        SQUAREONE = 'squareone', 'SquareOne'
+        MANUAL = 'manual', 'Manual'
+
     class Status(models.TextChoices):
         SAVED = 'saved', 'Saved'
         APPLIED = 'applied', 'Applied'
@@ -43,6 +47,37 @@ class Application(models.Model):
     # Preserve job details even if the posting is deleted.
     job_title = models.CharField(max_length=200)
     company = models.CharField(max_length=200)
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        default=Source.SQUAREONE,
+        editable=False,
+    )
+    location = models.CharField(max_length=200, blank=True)
+    external_job_url = models.URLField(blank=True)
+
+    class WorkArrangement(models.TextChoices):
+        REMOTE = 'remote', 'Remote'
+        HYBRID = 'hybrid', 'Hybrid'
+        ON_SITE = 'on_site', 'On-site'
+
+    work_arrangement = models.CharField(
+        max_length=20,
+        choices=WorkArrangement.choices,
+        blank=True,
+    )
+
+    class EmploymentType(models.TextChoices):
+        FULL_TIME = 'full_time', 'Full-time'
+        PART_TIME = 'part_time', 'Part-time'
+        INTERNSHIP = 'internship', 'Internship'
+        CONTRACT = 'contract', 'Contract'
+
+    employment_type = models.CharField(
+        max_length=20,
+        choices=EmploymentType.choices,
+        blank=True,
+    )
 
     status = models.CharField(
         max_length=20,
@@ -55,6 +90,7 @@ class Application(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -70,6 +106,12 @@ class Application(models.Model):
                     'closed',
                 ]),
                 name='api_application_status_valid',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['owner', 'archived_at'],
+                name='api_app_owner_archive_idx',
             ),
         ]
 

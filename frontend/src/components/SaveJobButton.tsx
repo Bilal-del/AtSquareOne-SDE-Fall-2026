@@ -1,10 +1,11 @@
 import { isAxiosError } from 'axios';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   createApplication,
-  getAllApplications,
+  findApplicationDuplicates,
   type Application,
+  type ApplicationDuplicate,
 } from '../api/applications';
 import { useAuth } from '../auth/AuthState';
 import {
@@ -41,77 +42,31 @@ function getSaveErrorMessage(error: unknown): string {
 }
 
 function SaveJobButton({ jobId }: SaveJobButtonProps) {
-  const { isAuthenticated, status, user } = useAuth();
+  const { isAuthenticated, status } = useAuth();
   const location = useLocation();
-  const [trackedApplication, setTrackedApplication] = useState<Application | null>(null);
-  const [checkedKey, setCheckedKey] = useState<string | null>(null);
+  const [createdApplication, setCreatedApplication] = useState<Application | null>(null);
+  const [duplicates, setDuplicates] = useState<ApplicationDuplicate[]>([]);
+  const [duplicateCheckFailed, setDuplicateCheckFailed] = useState(false);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const submissionPending = useRef(false);
 
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-
-    let active = true;
-    const requestKey = `${user.id}:${jobId}`;
-
-    async function checkTracker() {
-      try {
-        const applications = await getAllApplications();
-        if (active) {
-          setTrackedApplication(
-            applications.find((application) => application.job === jobId) ?? null,
-          );
-        }
-      } catch (error) {
-        if (active) {
-          setMessage('Unable to check the application tracker right now. Try again before saving.');
-        }
-        console.error(error);
-      } finally {
-        if (active) {
-          setCheckedKey(requestKey);
-        }
-      }
-    }
-
-    checkTracker();
-    return () => {
-      active = false;
-    };
-  }, [jobId, isAuthenticated, user]);
-
-  const currentKey = user ? `${user.id}:${jobId}` : null;
-  const checking = status === 'initializing' ||
-    (isAuthenticated && checkedKey !== currentKey);
-  const currentApplication = checkedKey === currentKey ? trackedApplication : null;
-
-  async function saveJob() {
-    if (submissionPending.current || currentApplication) {
-      return;
-    }
+  async function createTrackedApplication() {
+    if (submissionPending.current) return;
 
     submissionPending.current = true;
     setSaving(true);
     setMessage(null);
 
     try {
-      const applications = await getAllApplications();
-      const existingApplication = applications.find(
-        (application) => application.job === jobId,
-      );
-
-      if (existingApplication) {
-        setTrackedApplication(existingApplication);
-        setMessage('This job is already in your application tracker.');
-        return;
-      }
-
-      const createdApplication = await createApplication({
+      const application = await createApplication({
         job: jobId,
         status: DEFAULT_APPLICATION_STATUS,
       });
-      setTrackedApplication(createdApplication);
+      setCreatedApplication(application);
+      setDuplicates([]);
+      setDuplicateCheckFailed(false);
       setMessage('Job saved to your application tracker.');
     } catch (error) {
       setMessage(getSaveErrorMessage(error));
@@ -120,6 +75,36 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
       submissionPending.current = false;
       setSaving(false);
     }
+  }
+
+  async function checkBeforeSaving() {
+    if (checkingDuplicates || saving) return;
+
+    setCheckingDuplicates(true);
+    setDuplicates([]);
+    setDuplicateCheckFailed(false);
+    setMessage(null);
+    try {
+      const matches = await findApplicationDuplicates({ job: jobId });
+      if (matches.length > 0) {
+        setDuplicates(matches);
+      } else {
+        await createTrackedApplication();
+      }
+    } catch {
+      setDuplicateCheckFailed(true);
+      setMessage(
+        'Duplicate check is unavailable. You can cancel or continue saving this job.',
+      );
+    } finally {
+      setCheckingDuplicates(false);
+    }
+  }
+
+  function cancelDuplicateSave() {
+    setDuplicates([]);
+    setDuplicateCheckFailed(false);
+    setMessage('Save cancelled.');
   }
 
   return (
@@ -135,19 +120,52 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
             Sign in to save
           </Link>
         </div>
-      ) : currentApplication ? (
+      ) : createdApplication ? (
         <div className="save-job-control__tracked">
-          <strong>Already tracked</strong>
-          <span>Status: {APPLICATION_STATUS_LABELS[currentApplication.status]}</span>
+          <strong>Saved to your tracker</strong>
+          <span>Status: {APPLICATION_STATUS_LABELS[createdApplication.status]}</span>
           <Link to="/applications">View in application tracker</Link>
+        </div>
+      ) : duplicates.length > 0 || duplicateCheckFailed ? (
+        <div className="save-job-control__duplicate" role="status">
+          <strong>
+            {duplicates.length > 0
+              ? 'Potential duplicate found'
+              : 'Duplicate check unavailable'}
+          </strong>
+          {duplicates.length > 0 && (
+            <ul>
+              {duplicates.map((duplicate) => (
+                <li key={duplicate.id}>
+                  {APPLICATION_STATUS_LABELS[duplicate.status]} ·{' '}
+                  {duplicate.archived_at ? 'Archived' : 'Active'}
+                </li>
+              ))}
+            </ul>
+          )}
+          <span>You can cancel or save another application for this job.</span>
+          <div className="save-job-control__duplicate-actions">
+            <button type="button" onClick={cancelDuplicateSave}>Cancel</button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={createTrackedApplication}
+            >
+              {saving ? 'Saving…' : 'Continue saving'}
+            </button>
+          </div>
         </div>
       ) : (
         <button
           type="button"
-          disabled={checking || saving}
-          onClick={saveJob}
+          disabled={status === 'initializing' || checkingDuplicates || saving}
+          onClick={checkBeforeSaving}
         >
-          {checking ? 'Checking tracker…' : saving ? 'Saving…' : 'Save to tracker'}
+          {checkingDuplicates
+            ? 'Checking tracker…'
+            : saving
+              ? 'Saving…'
+              : 'Save to tracker'}
         </button>
       )}
       {message && isAuthenticated && (

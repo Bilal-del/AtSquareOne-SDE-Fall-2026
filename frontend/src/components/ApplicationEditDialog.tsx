@@ -8,17 +8,12 @@ import {
 import {
   updateApplication,
   type Application,
-  type ApplicationStatus,
   type UpdateApplicationInput,
 } from '../api/applications';
-
-const STATUS_OPTIONS: Array<{ value: ApplicationStatus; label: string }> = [
-  { value: 'saved', label: 'Saved' },
-  { value: 'applied', label: 'Applied' },
-  { value: 'interviewing', label: 'Interviewing' },
-  { value: 'offered', label: 'Offered' },
-  { value: 'rejected', label: 'Rejected' },
-];
+import {
+  APPLICATION_STATUSES,
+  type ApplicationStatus,
+} from '../constants/applicationStatuses';
 
 interface ApplicationEditDialogProps {
   application: Application;
@@ -146,7 +141,7 @@ function ApplicationEditDialog({
           <label className="application-dialog__field">
             <span>Status</span>
             <select value={status} onChange={(event) => setStatus(event.target.value as ApplicationStatus)}>
-              {STATUS_OPTIONS.map((option) => (
+              {APPLICATION_STATUSES.map((option) => (
                 <option value={option.value} key={option.value}>{option.label}</option>
               ))}
             </select>

@@ -16,13 +16,15 @@ class Job(models.Model):
 
 
 class Application(models.Model):
-    STATUS_CHOICES = [
-        ('saved', 'Saved'),
-        ('applied', 'Applied'),
-        ('interviewing', 'Interviewing'),
-        ('offered', 'Offered'),
-        ('rejected', 'Rejected'),
-    ]
+    class Status(models.TextChoices):
+        SAVED = 'saved', 'Saved'
+        APPLIED = 'applied', 'Applied'
+        INTERVIEWING = 'interviewing', 'Interviewing'
+        OFFERED = 'offered', 'Offered'
+        ACCEPTED = 'accepted', 'Accepted'
+        REJECTED = 'rejected', 'Rejected'
+        WITHDRAWN = 'withdrawn', 'Withdrawn'
+        CLOSED = 'closed', 'Closed'
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -44,8 +46,8 @@ class Application(models.Model):
 
     status = models.CharField(
         max_length=20,
-        choices=STATUS_CHOICES,
-        default='saved'
+        choices=Status.choices,
+        default=Status.SAVED,
     )
 
     applied_date = models.DateField(null=True, blank=True)
@@ -53,6 +55,23 @@ class Application(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(status__in=[
+                    'saved',
+                    'applied',
+                    'interviewing',
+                    'offered',
+                    'accepted',
+                    'rejected',
+                    'withdrawn',
+                    'closed',
+                ]),
+                name='api_application_status_valid',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.job_title} at {self.company} - {self.status}"

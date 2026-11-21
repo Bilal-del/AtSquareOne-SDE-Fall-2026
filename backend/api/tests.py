@@ -1,8 +1,21 @@
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Application, Job
+
+
+APPLICATION_STATUSES = (
+    'saved',
+    'applied',
+    'interviewing',
+    'offered',
+    'accepted',
+    'rejected',
+    'withdrawn',
+    'closed',
+)
 
 
 class JobAPITests(APITestCase):
@@ -159,17 +172,26 @@ class ApplicationAPITests(APITestCase):
         detail_response = self.client.get(
             f'/api/applications/{application.id}/'
         )
-        update_response = self.client.patch(
-            f'/api/applications/{application.id}/',
-            {'status': 'offered', 'owner': self.user_a.id},
-            format='json',
-        )
+        for application_status in APPLICATION_STATUSES:
+            with self.subTest(status=application_status):
+                update_response = self.client.patch(
+                    f'/api/applications/{application.id}/',
+                    {
+                        'status': application_status,
+                        'owner': self.user_a.id,
+                    },
+                    format='json',
+                )
+                self.assertEqual(
+                    update_response.status_code,
+                    status.HTTP_404_NOT_FOUND,
+                )
+
         delete_response = self.client.delete(
             f'/api/applications/{application.id}/'
         )
 
         self.assertEqual(detail_response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(update_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(delete_response.status_code, status.HTTP_404_NOT_FOUND)
         application.refresh_from_db()
         self.assertEqual(application.owner, self.user_b)
@@ -254,6 +276,52 @@ class ApplicationAPITests(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_all_application_statuses_are_accepted_in_display_order(self):
+        self.assertEqual(tuple(Application.Status.values), APPLICATION_STATUSES)
+        self.client.force_authenticate(user=self.user_a)
+
+        for application_status in APPLICATION_STATUSES:
+            with self.subTest(status=application_status):
+                response = self.client.post(
+                    '/api/applications/',
+                    {'job': self.job.id, 'status': application_status},
+                    format='json',
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+                self.assertEqual(response.data['status'], application_status)
+                self.assertEqual(
+                    Application.objects.get(pk=response.data['id']).status,
+                    application_status,
+                )
+
+    def test_owner_can_transition_between_any_two_valid_statuses(self):
+        application = self.create_application(self.user_a)
+        self.client.force_authenticate(user=self.user_a)
+
+        for source_status in APPLICATION_STATUSES:
+            application.status = source_status
+            application.save(update_fields=['status'])
+
+            for target_status in APPLICATION_STATUSES:
+                with self.subTest(
+                    source=source_status,
+                    target=target_status,
+                ):
+                    response = self.client.patch(
+                        f'/api/applications/{application.id}/',
+                        {'status': target_status},
+                        format='json',
+                    )
+
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    self.assertEqual(response.data['status'], target_status)
+
+    def test_database_constraint_rejects_unknown_application_status(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_application(self.user_a, status='unknown_status')
 
     def test_application_requires_job(self):
         self.client.force_authenticate(user=self.user_a)

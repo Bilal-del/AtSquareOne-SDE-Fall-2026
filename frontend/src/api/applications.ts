@@ -1,11 +1,7 @@
 import apiClient from './client';
+import type { ApplicationStatus } from '../constants/applicationStatuses';
 
-export type ApplicationStatus =
-    | 'saved'
-    | 'applied'
-    | 'interviewing'
-    | 'offered'
-    | 'rejected';
+export type { ApplicationStatus } from '../constants/applicationStatuses';
 
 export interface Application {
     id: number;

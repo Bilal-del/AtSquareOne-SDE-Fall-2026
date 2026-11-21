@@ -5,17 +5,12 @@ import {
   createApplication,
   getAllApplications,
   type Application,
-  type ApplicationStatus,
 } from '../api/applications';
 import { useAuth } from '../auth/AuthState';
-
-const STATUS_LABELS: Record<ApplicationStatus, string> = {
-  saved: 'Saved',
-  applied: 'Applied',
-  interviewing: 'Interviewing',
-  offered: 'Offered',
-  rejected: 'Rejected',
-};
+import {
+  APPLICATION_STATUS_LABELS,
+  DEFAULT_APPLICATION_STATUS,
+} from '../constants/applicationStatuses';
 
 interface SaveJobButtonProps {
   jobId: number;
@@ -114,7 +109,7 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
 
       const createdApplication = await createApplication({
         job: jobId,
-        status: 'saved',
+        status: DEFAULT_APPLICATION_STATUS,
       });
       setTrackedApplication(createdApplication);
       setMessage('Job saved to your application tracker.');
@@ -143,7 +138,7 @@ function SaveJobButton({ jobId }: SaveJobButtonProps) {
       ) : currentApplication ? (
         <div className="save-job-control__tracked">
           <strong>Already tracked</strong>
-          <span>Status: {STATUS_LABELS[currentApplication.status]}</span>
+          <span>Status: {APPLICATION_STATUS_LABELS[currentApplication.status]}</span>
           <Link to="/applications">View in application tracker</Link>
         </div>
       ) : (

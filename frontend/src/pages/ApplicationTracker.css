@@ -314,9 +314,24 @@
     color: var(--color-primary);
 }
 
+.application-status--accepted {
+    background: #dcefe4;
+    color: #285f3d;
+}
+
 .application-status--rejected {
     background: #f5e8e6;
     color: #8b443b;
+}
+
+.application-status--withdrawn {
+    background: #f3ece2;
+    color: #765331;
+}
+
+.application-status--closed {
+    background: #e9e9ed;
+    color: #4f505d;
 }
 
 .application-pagination {

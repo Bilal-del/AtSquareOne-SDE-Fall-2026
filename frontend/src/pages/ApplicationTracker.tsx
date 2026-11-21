@@ -3,29 +3,17 @@ import { Link } from 'react-router-dom';
 import {
     getAllApplications,
     type Application,
-    type ApplicationStatus,
 } from '../api/applications';
 import ApplicationDeleteDialog from '../components/ApplicationDeleteDialog';
 import ApplicationEditDialog from '../components/ApplicationEditDialog';
+import {
+    APPLICATION_STATUSES,
+    APPLICATION_STATUS_LABELS,
+    type ApplicationStatus,
+} from '../constants/applicationStatuses';
 import './ApplicationTracker.css';
 
-const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-    saved: 'Saved',
-    applied: 'Applied',
-    interviewing: 'Interviewing',
-    offered: 'Offered',
-    rejected: 'Rejected',
-};
-
-const OVERVIEW_STATUSES: Array<{
-    status: Exclude<ApplicationStatus, 'rejected'>;
-    label: string;
-}> = [
-    { status: 'saved', label: 'Saved' },
-    { status: 'applied', label: 'Applied' },
-    { status: 'interviewing', label: 'Interviewing' },
-    { status: 'offered', label: 'Offers' },
-];
+const OVERVIEW_STATUSES = APPLICATION_STATUSES.slice(0, 4);
 
 const APPLICATIONS_PER_PAGE = 5;
 
@@ -102,13 +90,9 @@ function ApplicationTracker() {
     }, [retryKey]);
 
     const statusCounts = useMemo(() => {
-        const counts: Record<ApplicationStatus, number> = {
-            saved: 0,
-            applied: 0,
-            interviewing: 0,
-            offered: 0,
-            rejected: 0,
-        };
+        const counts = Object.fromEntries(
+            APPLICATION_STATUSES.map(({ value }) => [value, 0]),
+        ) as Record<ApplicationStatus, number>;
 
         applications.forEach((application) => {
             counts[application.status] += 1;
@@ -260,9 +244,9 @@ function ApplicationTracker() {
                         className="application-overview"
                         aria-label="Application overview"
                     >
-                        {OVERVIEW_STATUSES.map(({ status, label }) => (
-                            <article className="application-overview__card" key={status}>
-                                <strong>{statusCounts[status]}</strong>
+                        {OVERVIEW_STATUSES.map(({ value, label }) => (
+                            <article className="application-overview__card" key={value}>
+                                <strong>{statusCounts[value]}</strong>
                                 <span>{label}</span>
                             </article>
                         ))}
@@ -315,9 +299,9 @@ function ApplicationTracker() {
                                 }}
                             >
                                 <option value="all">All statuses</option>
-                                {Object.entries(APPLICATION_STATUS_LABELS).map(
-                                    ([status, label]) => (
-                                        <option value={status} key={status}>
+                                {APPLICATION_STATUSES.map(
+                                    ({ value, label }) => (
+                                        <option value={value} key={value}>
                                             {label}
                                         </option>
                                     ),

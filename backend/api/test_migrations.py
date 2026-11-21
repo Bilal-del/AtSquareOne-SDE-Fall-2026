@@ -53,3 +53,57 @@ class ApplicationOwnershipMigrationTests(TransactionTestCase):
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
+
+
+class ApplicationStatusContractMigrationTests(TransactionTestCase):
+    migrate_from = [('api', '0005_application_owner_required')]
+    migrate_to = [('api', '0006_application_status_contract')]
+    existing_statuses = (
+        'saved',
+        'applied',
+        'interviewing',
+        'offered',
+        'rejected',
+    )
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+
+        User = old_apps.get_model('auth', 'User')
+        Job = old_apps.get_model('api', 'Job')
+        Application = old_apps.get_model('api', 'Application')
+        owner = User.objects.create(username='status_migration_owner')
+        job = Job.objects.create(
+            title='Status Migration Role',
+            company='Status Migration Company',
+            location='Remote',
+            description='Verifies existing status values are preserved.',
+        )
+        for application_status in self.existing_statuses:
+            Application.objects.create(
+                owner=owner,
+                job=job,
+                job_title=job.title,
+                company=job.company,
+                status=application_status,
+            )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_to)
+        self.apps = executor.loader.project_state(self.migrate_to).apps
+
+    def test_existing_status_values_are_preserved(self):
+        Application = self.apps.get_model('api', 'Application')
+
+        self.assertCountEqual(
+            Application.objects.values_list('status', flat=True),
+            self.existing_statuses,
+        )
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()

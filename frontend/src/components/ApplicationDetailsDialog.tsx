@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import {
   createApplicationReminder,
   deleteApplicationReminder,
@@ -11,10 +12,34 @@ import {
   type ApplicationActivity,
   type ApplicationReminder,
 } from '../api/applications';
+import {
+  EMPLOYMENT_TYPES,
+  WORK_ARRANGEMENTS,
+} from '../constants/applicationFields';
+import { APPLICATION_STATUS_LABELS } from '../constants/applicationStatuses';
 
 interface ApplicationDetailsDialogProps {
   application: Application;
   onClose: () => void;
+  onEdit?: (application: Application) => void;
+  onArchiveChange?: (application: Application) => void;
+  onDelete?: (application: Application) => void;
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return 'Not provided';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Date unavailable';
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+}
+
+function getFieldLabel(
+  value: string,
+  options: readonly { value: string; label: string }[],
+): string {
+  return options.find((option) => option.value === value)?.label ?? 'Not specified';
 }
 
 function sortReminders(reminders: ApplicationReminder[]) {
@@ -58,6 +83,9 @@ function formatReminderDue(reminder: ApplicationReminder): string {
 function ApplicationDetailsDialog({
   application,
   onClose,
+  onEdit,
+  onArchiveChange,
+  onDelete,
 }: ApplicationDetailsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [reminders, setReminders] = useState<ApplicationReminder[]>([]);
@@ -249,14 +277,14 @@ function ApplicationDetailsDialog({
     >
       <div className="application-dialog__heading">
         <div>
-          <span className="application-dialog__eyebrow">Follow-up center</span>
+          <span className="application-dialog__eyebrow">Application details</span>
           <h2 id="application-details-title">{application.job_title}</h2>
           <p>{application.company}{application.archived_at ? ' · Archived' : ''}</p>
         </div>
         <button
           className="application-dialog__close"
           type="button"
-          aria-label="Close follow-up center"
+          aria-label="Close application details"
           onClick={() => {
             dialogRef.current?.close();
             onClose();
@@ -266,7 +294,84 @@ function ApplicationDetailsDialog({
         </button>
       </div>
 
-      {loading && <p role="status">Loading reminders and activity…</p>}
+      <div className="application-details-actions" aria-label="Application management actions">
+        {onEdit && (
+          <button type="button" onClick={() => onEdit(application)}>Edit application</button>
+        )}
+        {onArchiveChange && (
+          <button
+            type="button"
+            className="application-dialog__secondary"
+            onClick={() => onArchiveChange(application)}
+          >
+            {application.archived_at ? 'Restore application' : 'Archive application'}
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            className="application-details-actions__danger"
+            onClick={() => onDelete(application)}
+          >
+            Permanently delete
+          </button>
+        )}
+      </div>
+
+      <div className="application-details-summary">
+        <section aria-labelledby="job-information-heading">
+          <h3 id="job-information-heading">Job information</h3>
+          <dl className="application-details-fields">
+            <div><dt>Job title</dt><dd>{application.job_title || 'Not available'}</dd></div>
+            <div><dt>Company</dt><dd>{application.company || 'Not available'}</dd></div>
+            <div><dt>Location</dt><dd>{application.location || 'Not specified'}</dd></div>
+            <div>
+              <dt>Source</dt>
+              <dd>{application.source === 'squareone' ? 'SquareOne job listing' : 'Manual application'}</dd>
+            </div>
+            <div>
+              <dt>Job posting</dt>
+              <dd>
+                {application.job ? (
+                  <Link to={`/jobs/${application.job}`}>View SquareOne listing</Link>
+                ) : application.external_job_url ? (
+                  <a href={application.external_job_url} target="_blank" rel="noreferrer">Open external posting</a>
+                ) : 'Not provided'}
+              </dd>
+            </div>
+            <div>
+              <dt>Work arrangement</dt>
+              <dd>{getFieldLabel(application.work_arrangement, WORK_ARRANGEMENTS)}</dd>
+            </div>
+            <div>
+              <dt>Employment type</dt>
+              <dd>{getFieldLabel(application.employment_type, EMPLOYMENT_TYPES)}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section aria-labelledby="application-information-heading">
+          <h3 id="application-information-heading">Application information</h3>
+          <dl className="application-details-fields">
+            <div>
+              <dt>Status</dt>
+              <dd><span className={`application-status application-status--${application.status}`}>{APPLICATION_STATUS_LABELS[application.status]}</span></dd>
+            </div>
+            <div><dt>Application date</dt><dd>{formatDate(application.applied_date)}</dd></div>
+            <div><dt>Record state</dt><dd>{application.archived_at ? 'Archived' : 'Active'}</dd></div>
+            <div><dt>Created</dt><dd>{formatDate(application.created_at)}</dd></div>
+            <div><dt>Last updated</dt><dd>{formatDate(application.updated_at)}</dd></div>
+            <div className="application-details-fields__wide">
+              <dt>Personal notes</dt>
+              <dd className={!application.notes ? 'application-details-fields__empty' : undefined}>
+                {application.notes || 'No personal notes have been added.'}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+
+      {loading && <p className="application-details-loading" role="status">Loading reminders and activity…</p>}
       {loadError && (
         <div className="application-dialog__error" role="alert">
           <p>{loadError}</p>

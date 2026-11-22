@@ -67,6 +67,7 @@ function ApplicationTracker() {
     const [creatingApplication, setCreatingApplication] = useState(false);
     const [viewingApplication, setViewingApplication] = useState<Application | null>(null);
     const [changingArchiveApplication, setChangingArchiveApplication] = useState<Application | null>(null);
+    const [resumeDetailsApplication, setResumeDetailsApplication] = useState<Application | null>(null);
     const [operationMessage, setOperationMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -175,6 +176,10 @@ function ApplicationTracker() {
             ),
         );
         setEditingApplication(null);
+        if (resumeDetailsApplication?.id === updatedApplication.id) {
+            setViewingApplication(updatedApplication);
+            setResumeDetailsApplication(null);
+        }
         setOperationMessage(`${updatedApplication.job_title} was updated successfully.`);
     }
 
@@ -196,6 +201,8 @@ function ApplicationTracker() {
             currentApplications.filter((application) => application.id !== id),
         );
         setEditingApplication(null);
+        setViewingApplication(null);
+        setResumeDetailsApplication(null);
         setOperationMessage('That application no longer exists. The tracker has been refreshed.');
     }
 
@@ -205,6 +212,8 @@ function ApplicationTracker() {
             currentApplications.filter((application) => application.id !== id),
         );
         setDeletingApplication(null);
+        setViewingApplication(null);
+        setResumeDetailsApplication(null);
         setOperationMessage(
             alreadyMissing
                 ? 'That application was already removed. The tracker has been refreshed.'
@@ -221,15 +230,52 @@ function ApplicationTracker() {
                         : application,
                 );
             }
-            return currentApplications.filter(
-                (application) => application.id !== updatedApplication.id,
+            const belongsInCurrentView = archiveFilter === 'active'
+                ? !updatedApplication.archived_at
+                : Boolean(updatedApplication.archived_at);
+            if (!belongsInCurrentView) {
+                return currentApplications.filter(
+                    (application) => application.id !== updatedApplication.id,
+                );
+            }
+            const alreadyPresent = currentApplications.some(
+                (application) => application.id === updatedApplication.id,
             );
+            return alreadyPresent
+                ? currentApplications.map((application) =>
+                    application.id === updatedApplication.id
+                        ? updatedApplication
+                        : application,
+                )
+                : [updatedApplication, ...currentApplications];
         });
         setChangingArchiveApplication(null);
+        if (resumeDetailsApplication?.id === updatedApplication.id) {
+            setViewingApplication(updatedApplication);
+            setResumeDetailsApplication(null);
+        }
         setCurrentPage(1);
         setOperationMessage(
             `${updatedApplication.job_title} was ${updatedApplication.archived_at ? 'archived' : 'restored'} successfully.`,
         );
+    }
+
+    function resumeDetailsAfterCancel() {
+        if (resumeDetailsApplication) {
+            setViewingApplication(resumeDetailsApplication);
+            setResumeDetailsApplication(null);
+        }
+    }
+
+    function openManagementFromDetails(
+        application: Application,
+        action: 'edit' | 'archive' | 'delete',
+    ) {
+        setViewingApplication(null);
+        setResumeDetailsApplication(application);
+        if (action === 'edit') setEditingApplication(application);
+        if (action === 'archive') setChangingArchiveApplication(application);
+        if (action === 'delete') setDeletingApplication(application);
     }
 
     return (
@@ -477,38 +523,10 @@ function ApplicationTracker() {
                                                             type="button"
                                                             onClick={() => {
                                                                 setOperationMessage(null);
-                                                                setEditingApplication(application);
-                                                            }}
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setOperationMessage(null);
                                                                 setViewingApplication(application);
                                                             }}
                                                         >
-                                                            Follow-up
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setOperationMessage(null);
-                                                                setChangingArchiveApplication(application);
-                                                            }}
-                                                        >
-                                                            {application.archived_at ? 'Restore' : 'Archive'}
-                                                        </button>
-                                                        <button
-                                                            className="application-table__remove"
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setOperationMessage(null);
-                                                                setDeletingApplication(application);
-                                                            }}
-                                                        >
-                                                            Remove
+                                                            View details
                                                         </button>
                                                     </div>
                                                 </td>
@@ -580,7 +598,10 @@ function ApplicationTracker() {
             {editingApplication && (
                 <ApplicationEditDialog
                     application={editingApplication}
-                    onClose={() => setEditingApplication(null)}
+                    onClose={() => {
+                        setEditingApplication(null);
+                        resumeDetailsAfterCancel();
+                    }}
                     onMissing={handleApplicationMissing}
                     onUpdated={handleApplicationUpdated}
                 />
@@ -595,19 +616,28 @@ function ApplicationTracker() {
                 <ApplicationDetailsDialog
                     application={viewingApplication}
                     onClose={() => setViewingApplication(null)}
+                    onEdit={(application) => openManagementFromDetails(application, 'edit')}
+                    onArchiveChange={(application) => openManagementFromDetails(application, 'archive')}
+                    onDelete={(application) => openManagementFromDetails(application, 'delete')}
                 />
             )}
             {changingArchiveApplication && (
                 <ApplicationArchiveDialog
                     application={changingArchiveApplication}
-                    onClose={() => setChangingArchiveApplication(null)}
+                    onClose={() => {
+                        setChangingArchiveApplication(null);
+                        resumeDetailsAfterCancel();
+                    }}
                     onUpdated={handleArchiveUpdated}
                 />
             )}
             {deletingApplication && (
                 <ApplicationDeleteDialog
                     application={deletingApplication}
-                    onClose={() => setDeletingApplication(null)}
+                    onClose={() => {
+                        setDeletingApplication(null);
+                        resumeDetailsAfterCancel();
+                    }}
                     onDeleted={handleApplicationDeleted}
                 />
             )}

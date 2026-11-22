@@ -132,7 +132,7 @@ describe('ApplicationTracker list regression coverage', () => {
     expect(within(createdRow).getByText('Saved')).toBeInTheDocument()
   })
 
-  it('keeps existing edit and permanent delete workflows functional', async () => {
+  it('edits and permanently deletes through the consolidated details experience', async () => {
     const user = userEvent.setup()
     const original = makeApplication({ id: 7 })
     const updated = makeApplication({ id: 7, job_title: 'Staff Engineer' })
@@ -142,14 +142,18 @@ describe('ApplicationTracker list regression coverage', () => {
     renderTracker()
 
     const originalRow = await screen.findByRole('row', { name: /Software Engineer Example Corp/ })
-    await user.click(within(originalRow).getByRole('button', { name: 'Edit' }))
+    await user.click(within(originalRow).getByRole('button', { name: 'View details' }))
+    expect(screen.getByRole('heading', { name: 'Job information' })).toBeInTheDocument()
+    expect(screen.getByText('No personal notes have been added.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit application' }))
     await user.clear(screen.getByRole('textbox', { name: /job title/i }))
     await user.type(screen.getByRole('textbox', { name: /job title/i }), 'Staff Engineer')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    const updatedRow = await screen.findByRole('row', { name: /Staff Engineer Example Corp/ })
+    await screen.findByRole('row', { name: /Staff Engineer Example Corp/ })
     expect(screen.getByText('Staff Engineer was updated successfully.')).toBeInTheDocument()
-    await user.click(within(updatedRow).getByRole('button', { name: 'Remove' }))
+    expect(screen.getByRole('heading', { name: 'Staff Engineer' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Permanently delete' }))
     await user.click(screen.getByRole('button', { name: 'Remove application' }))
 
     await waitFor(() => expect(apiMocks.deleteApplication).toHaveBeenCalledWith(7))
@@ -185,7 +189,10 @@ describe('ApplicationTracker list regression coverage', () => {
         selector: '.application-archived-badge',
       })
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Restore' })).toBeInTheDocument()
+    const archivedRow = screen.getByRole('row', { name: /Archived Role Example Corp/ })
+    await user.click(within(archivedRow).getByRole('button', { name: 'View details' }))
+    expect(screen.getByRole('button', { name: 'Restore application' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close application details' }))
 
     await user.selectOptions(
       screen.getByRole('combobox', { name: 'Filter by archive state' }),
@@ -194,5 +201,36 @@ describe('ApplicationTracker list regression coverage', () => {
     expect(await screen.findByText('Active Role')).toBeInTheDocument()
     expect(screen.getByText('Archived Role')).toBeInTheDocument()
     expect(apiMocks.getAllApplications).toHaveBeenCalledWith({ archive_state: 'all' })
+  })
+
+  it('archives and restores from details while preserving the reminder confirmation workflow', async () => {
+    const user = userEvent.setup()
+    const active = makeApplication({ id: 9, job_title: 'Archive From Details' })
+    const archived = makeApplication({
+      ...active,
+      archived_at: '2026-11-21T18:00:00Z',
+    })
+    apiMocks.getAllApplications.mockResolvedValue([active])
+    apiMocks.getApplicationReminders.mockResolvedValue([])
+    apiMocks.archiveApplication.mockResolvedValue(archived)
+    apiMocks.restoreApplication.mockResolvedValue(active)
+    renderTracker()
+
+    const row = await screen.findByRole('row', { name: /Archive From Details Example Corp/ })
+    await user.click(within(row).getByRole('button', { name: 'View details' }))
+    await user.click(screen.getByRole('button', { name: 'Archive application' }))
+    expect(await screen.findByText('This application has no reminders.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Archive application' }))
+
+    await waitFor(() => expect(apiMocks.archiveApplication).toHaveBeenCalledWith(9, 'continue'))
+    expect(await screen.findByText('Archived', { selector: 'dd' })).toBeInTheDocument()
+    expect(screen.getByText('Archive From Details was archived successfully.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Restore application' }))
+    expect(await screen.findByText('This application has no reminders.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Restore application' }))
+    await waitFor(() => expect(apiMocks.restoreApplication).toHaveBeenCalledWith(9, 'enable'))
+    expect(await screen.findByText('Active', { selector: 'dd' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close application details' }))
+    expect(screen.getByRole('row', { name: /Archive From Details Example Corp/ })).toBeInTheDocument()
   })
 })

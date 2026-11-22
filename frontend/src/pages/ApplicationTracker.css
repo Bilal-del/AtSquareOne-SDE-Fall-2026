@@ -27,7 +27,26 @@
 .application-tracker-heading__actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 12px;
+}
+
+.application-archive-filter {
+    display: flex;
+    align-items: center;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+    gap: 7px;
+}
+
+.application-archive-filter select {
+    min-height: 40px;
+    padding: 8px 30px 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
 }
 
 .application-tracker-demo-badge,
@@ -207,6 +226,10 @@
     border-top: 1px solid var(--color-border);
 }
 
+.application-table__row--archived {
+    background: #f7f7f5;
+}
+
 .application-table td {
     color: var(--color-text-secondary);
     font-size: 13px;
@@ -225,6 +248,19 @@
 
 .application-table td:first-child strong {
     font-size: 14px;
+}
+
+.application-archived-badge {
+    width: fit-content;
+    margin-top: 6px;
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: #e9e9ed;
+    color: #4f505d;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
 .application-table a {
@@ -431,6 +467,10 @@
   width: min(calc(100% - 32px), 760px);
 }
 
+.application-dialog--details {
+  width: min(calc(100% - 32px), 1040px);
+}
+
 .application-dialog::backdrop {
   background: rgba(20, 46, 43, 0.48);
 }
@@ -599,6 +639,254 @@
   margin-top: 6px;
 }
 
+.application-archive-choices {
+  display: flex;
+  margin: 20px 0 0;
+  padding: 0;
+  flex-direction: column;
+  border: 0;
+  gap: 10px;
+}
+
+.application-archive-choices legend {
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.application-archive-choices label {
+  display: flex;
+  padding: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  font-size: 13px;
+  gap: 10px;
+}
+
+.application-archive-choices input {
+  margin-top: 3px;
+}
+
+.application-details-layout {
+  display: grid;
+  margin-top: 24px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 28px;
+}
+
+.application-details-layout > section {
+  min-width: 0;
+}
+
+.application-details-layout h3,
+.application-details-layout h4 {
+  margin: 0;
+}
+
+.application-details-section-heading {
+  display: flex;
+  margin-bottom: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.application-details-section-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.application-details-section-heading span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.application-reminder-bell {
+  display: inline-flex;
+  min-height: 36px;
+  padding: 7px 10px;
+  align-items: center;
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.application-reminder-list,
+.application-activity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.application-reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.application-reminder {
+  display: grid;
+  padding: 13px;
+  align-items: flex-start;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  gap: 11px;
+}
+
+.application-reminder--disabled {
+  opacity: 0.65;
+}
+
+.application-reminder-toggle {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 3px;
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.application-reminder-toggle span {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.application-reminder-toggle[aria-pressed='true'] span {
+  background: var(--color-primary);
+}
+
+.application-reminder__content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  gap: 4px;
+}
+
+.application-reminder__content > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.application-reminder__content strong {
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.application-reminder__content p {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.application-reminder__timing {
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.application-reminder__timing--upcoming {
+  background: var(--color-accent);
+  color: var(--color-primary);
+}
+
+.application-reminder__timing--overdue {
+  background: #f5e8e6;
+  color: #8b443b;
+}
+
+.application-reminder__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.application-reminder__actions button {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 11px;
+}
+
+.application-reminder-form {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+}
+
+.application-details-empty {
+  padding: 14px;
+  border-radius: 9px;
+  background: #f3f6f3;
+}
+
+.application-activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.application-activity-list li {
+  display: grid;
+  position: relative;
+  padding: 0 0 20px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.application-activity-list li::before {
+  position: absolute;
+  top: 9px;
+  bottom: -2px;
+  left: 5px;
+  width: 2px;
+  background: var(--color-border);
+  content: '';
+}
+
+.application-activity-list li:last-child::before {
+  display: none;
+}
+
+.application-activity-list li > span {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 3px solid var(--color-accent);
+  border-radius: 50%;
+  background: var(--color-primary);
+  z-index: 1;
+}
+
+.application-activity-list div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.application-activity-list strong {
+  font-size: 13px;
+}
+
+.application-activity-list time {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
 @media (max-width: 1120px) {
     .application-overview {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -618,6 +906,10 @@
 
     .application-table {
         min-width: 980px;
+    }
+
+    .application-details-layout {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -673,6 +965,11 @@
 
     .application-tracker-search label {
         flex: 1;
+    }
+
+    .application-archive-filter {
+        width: 100%;
+        justify-content: space-between;
     }
 
     .application-table-wrap {
@@ -806,5 +1103,19 @@
 
   .application-dialog__actions button {
     width: 100%;
+  }
+
+  .application-reminder {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .application-reminder__actions {
+    grid-column: 2;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .application-details-section-heading {
+    flex-direction: column;
   }
 }

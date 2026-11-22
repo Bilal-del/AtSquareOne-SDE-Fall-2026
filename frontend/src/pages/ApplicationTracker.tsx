@@ -5,7 +5,9 @@ import {
     type Application,
 } from '../api/applications';
 import ApplicationCreateDialog from '../components/ApplicationCreateDialog';
+import ApplicationArchiveDialog from '../components/ApplicationArchiveDialog';
 import ApplicationDeleteDialog from '../components/ApplicationDeleteDialog';
+import ApplicationDetailsDialog from '../components/ApplicationDetailsDialog';
 import ApplicationEditDialog from '../components/ApplicationEditDialog';
 import {
     APPLICATION_STATUSES,
@@ -55,19 +57,26 @@ function ApplicationTracker() {
     const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>(
         'all',
     );
+    const [archiveFilter, setArchiveFilter] = useState<'active' | 'archived' | 'all'>(
+        'active',
+    );
     const [currentPage, setCurrentPage] = useState(1);
     const [retryKey, setRetryKey] = useState(0);
     const [editingApplication, setEditingApplication] = useState<Application | null>(null);
     const [deletingApplication, setDeletingApplication] = useState<Application | null>(null);
     const [creatingApplication, setCreatingApplication] = useState(false);
+    const [viewingApplication, setViewingApplication] = useState<Application | null>(null);
+    const [changingArchiveApplication, setChangingArchiveApplication] = useState<Application | null>(null);
     const [operationMessage, setOperationMessage] = useState<string | null>(null);
 
     useEffect(() => {
         let active = true;
 
         async function fetchApplications() {
+            setLoading(true);
+            setError(null);
             try {
-                const data = await getAllApplications();
+                const data = await getAllApplications({ archive_state: archiveFilter });
 
                 if (active) {
                     setApplications(data);
@@ -89,7 +98,7 @@ function ApplicationTracker() {
         return () => {
             active = false;
         };
-    }, [retryKey]);
+    }, [archiveFilter, retryKey]);
 
     const statusCounts = useMemo(() => {
         const counts = Object.fromEntries(
@@ -135,7 +144,9 @@ function ApplicationTracker() {
             return firstVisiblePage + index;
         },
     );
-    const hasActiveFilters = Boolean(appliedSearch || statusFilter !== 'all');
+    const hasActiveFilters = Boolean(
+        appliedSearch || statusFilter !== 'all' || archiveFilter !== 'active',
+    );
 
     function handleSearch(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -147,6 +158,7 @@ function ApplicationTracker() {
         setSearchInput('');
         setAppliedSearch('');
         setStatusFilter('all');
+        setArchiveFilter('active');
         setCurrentPage(1);
     }
 
@@ -172,6 +184,7 @@ function ApplicationTracker() {
             ...currentApplications,
         ]);
         setCreatingApplication(false);
+        setArchiveFilter('active');
         setCurrentPage(1);
         setOperationMessage(
             `${createdApplication.job_title} was added to your tracker.`,
@@ -199,6 +212,26 @@ function ApplicationTracker() {
         );
     }
 
+    function handleArchiveUpdated(updatedApplication: Application) {
+        setApplications((currentApplications) => {
+            if (archiveFilter === 'all') {
+                return currentApplications.map((application) =>
+                    application.id === updatedApplication.id
+                        ? updatedApplication
+                        : application,
+                );
+            }
+            return currentApplications.filter(
+                (application) => application.id !== updatedApplication.id,
+            );
+        });
+        setChangingArchiveApplication(null);
+        setCurrentPage(1);
+        setOperationMessage(
+            `${updatedApplication.job_title} was ${updatedApplication.archived_at ? 'archived' : 'restored'} successfully.`,
+        );
+    }
+
     return (
         <section className="application-tracker-page">
             <p className="application-tracker-sr-only" role="status" aria-live="polite">
@@ -222,6 +255,23 @@ function ApplicationTracker() {
                     >
                         Add application
                     </button>
+                    <label className="application-archive-filter">
+                        <span>Archive view</span>
+                        <select
+                            aria-label="Filter by archive state"
+                            value={archiveFilter}
+                            onChange={(event) => {
+                                setArchiveFilter(
+                                    event.target.value as 'active' | 'archived' | 'all',
+                                );
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <option value="active">Active</option>
+                            <option value="archived">Archived</option>
+                            <option value="all">All</option>
+                        </select>
+                    </label>
                 </div>
             </div>
 
@@ -375,7 +425,10 @@ function ApplicationTracker() {
                                     </thead>
                                     <tbody>
                                         {visibleApplications.map((application) => (
-                                            <tr key={application.id}>
+                                            <tr
+                                                className={application.archived_at ? 'application-table__row--archived' : undefined}
+                                                key={application.id}
+                                            >
                                                 <td data-label="Role / Company">
                                                     <strong>
                                                         {application.job_title ||
@@ -385,6 +438,11 @@ function ApplicationTracker() {
                                                         {application.company ||
                                                             'Company unavailable'}
                                                     </span>
+                                                    {application.archived_at && (
+                                                        <span className="application-archived-badge">
+                                                            Archived
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td data-label="Status">
                                                     <ApplicationStatusBadge
@@ -423,6 +481,24 @@ function ApplicationTracker() {
                                                             }}
                                                         >
                                                             Edit
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setOperationMessage(null);
+                                                                setViewingApplication(application);
+                                                            }}
+                                                        >
+                                                            Follow-up
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setOperationMessage(null);
+                                                                setChangingArchiveApplication(application);
+                                                            }}
+                                                        >
+                                                            {application.archived_at ? 'Restore' : 'Archive'}
                                                         </button>
                                                         <button
                                                             className="application-table__remove"
@@ -498,13 +574,6 @@ function ApplicationTracker() {
                         </>
                     )}
 
-                    <aside className="application-tracker-planned-note">
-                        <strong>Planned</strong>
-                        <span>
-                            Reminders and next-step deadlines require future
-                            application data and are not active in this demo.
-                        </span>
-                    </aside>
                 </>
             )}
 
@@ -520,6 +589,19 @@ function ApplicationTracker() {
                 <ApplicationCreateDialog
                     onClose={() => setCreatingApplication(false)}
                     onCreated={handleApplicationCreated}
+                />
+            )}
+            {viewingApplication && (
+                <ApplicationDetailsDialog
+                    application={viewingApplication}
+                    onClose={() => setViewingApplication(null)}
+                />
+            )}
+            {changingArchiveApplication && (
+                <ApplicationArchiveDialog
+                    application={changingArchiveApplication}
+                    onClose={() => setChangingArchiveApplication(null)}
+                    onUpdated={handleArchiveUpdated}
                 />
             )}
             {deletingApplication && (

@@ -159,3 +159,47 @@ class ApplicationDomainFoundationMigrationTests(TransactionTestCase):
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
+
+
+class ApplicationActivityReminderMigrationTests(TransactionTestCase):
+    migrate_from = [('api', '0007_application_domain_foundation')]
+    migrate_to = [('api', '0008_application_activity_and_reminders')]
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+
+        User = old_apps.get_model('auth', 'User')
+        Application = old_apps.get_model('api', 'Application')
+        owner = User.objects.create(username='activity_migration_owner')
+        self.application_id = Application.objects.create(
+            owner=owner,
+            job=None,
+            job_title='Existing Manual Role',
+            company='Existing Company',
+            source='manual',
+            status='interviewing',
+            notes='Existing data must remain unchanged.',
+        ).pk
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_to)
+        self.apps = executor.loader.project_state(self.migrate_to).apps
+
+    def test_existing_application_is_preserved_without_invented_history(self):
+        Application = self.apps.get_model('api', 'Application')
+        ApplicationActivity = self.apps.get_model('api', 'ApplicationActivity')
+        ApplicationReminder = self.apps.get_model('api', 'ApplicationReminder')
+        application = Application.objects.get(pk=self.application_id)
+
+        self.assertEqual(application.status, 'interviewing')
+        self.assertEqual(application.notes, 'Existing data must remain unchanged.')
+        self.assertFalse(ApplicationActivity.objects.exists())
+        self.assertFalse(ApplicationReminder.objects.exists())
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()

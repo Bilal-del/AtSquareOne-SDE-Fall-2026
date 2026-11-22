@@ -74,6 +74,40 @@ export interface ApplicationDuplicate {
   archived_at: string | null;
 }
 
+export type ApplicationActivityType =
+  | 'created'
+  | 'status_changed'
+  | 'archived'
+  | 'restored';
+
+export interface ApplicationActivity {
+  id: number;
+  event_type: ApplicationActivityType;
+  previous_status: ApplicationStatus | null;
+  new_status: ApplicationStatus | null;
+  description: string;
+  created_at: string;
+}
+
+export interface ApplicationReminder {
+  id: number;
+  title: string;
+  due_date: string;
+  due_time: string | null;
+  note: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReminderInput {
+  title: string;
+  due_date: string;
+  due_time?: string | null;
+  note?: string;
+  enabled?: boolean;
+}
+
 export interface ApplicationListFilters {
   archive_state?: 'active' | 'archived' | 'all';
   status?: ApplicationStatus;
@@ -198,16 +232,85 @@ export async function findApplicationDuplicates(
   return response.data;
 }
 
-export async function archiveApplication(id: number): Promise<Application> {
-  const response = await apiClient.post<Application>(
-    `/applications/${id}/archive/`,
+export async function getApplicationActivity(
+  applicationId: number,
+): Promise<ApplicationActivity[]> {
+  const response = await apiClient.get<ApplicationActivity[]>(
+    `/applications/${applicationId}/activity/`,
   );
   return response.data;
 }
 
-export async function restoreApplication(id: number): Promise<Application> {
+export async function getApplicationReminders(
+  applicationId: number,
+): Promise<ApplicationReminder[]> {
+  const response = await apiClient.get<ApplicationReminder[]>(
+    `/applications/${applicationId}/reminders/`,
+  );
+  return response.data;
+}
+
+export async function createApplicationReminder(
+  applicationId: number,
+  input: ReminderInput,
+): Promise<ApplicationReminder> {
+  const response = await apiClient.post<ApplicationReminder>(
+    `/applications/${applicationId}/reminders/`,
+    input,
+  );
+  return response.data;
+}
+
+export async function updateApplicationReminder(
+  applicationId: number,
+  reminderId: number,
+  input: Partial<ReminderInput>,
+): Promise<ApplicationReminder> {
+  const response = await apiClient.patch<ApplicationReminder>(
+    `/applications/${applicationId}/reminders/${reminderId}/`,
+    input,
+  );
+  return response.data;
+}
+
+export async function deleteApplicationReminder(
+  applicationId: number,
+  reminderId: number,
+): Promise<void> {
+  await apiClient.delete(
+    `/applications/${applicationId}/reminders/${reminderId}/`,
+  );
+}
+
+export async function setApplicationRemindersEnabled(
+  applicationId: number,
+  enabled: boolean,
+): Promise<{ enabled: boolean; affected: number }> {
+  const response = await apiClient.post<{ enabled: boolean; affected: number }>(
+    `/applications/${applicationId}/reminder-control/`,
+    { enabled },
+  );
+  return response.data;
+}
+
+export async function archiveApplication(
+  id: number,
+  reminderAction: 'continue' | 'pause' = 'continue',
+): Promise<Application> {
+  const response = await apiClient.post<Application>(
+    `/applications/${id}/archive/`,
+    { reminder_action: reminderAction },
+  );
+  return response.data;
+}
+
+export async function restoreApplication(
+  id: number,
+  reminderAction: 'enable' | 'disable' = 'enable',
+): Promise<Application> {
   const response = await apiClient.post<Application>(
     `/applications/${id}/restore/`,
+    { reminder_action: reminderAction },
   );
   return response.data;
 }

@@ -117,3 +117,70 @@ class Application(models.Model):
 
     def __str__(self):
         return f"{self.job_title} at {self.company} - {self.status}"
+
+
+class ApplicationActivity(models.Model):
+    class EventType(models.TextChoices):
+        CREATED = 'created', 'Application created'
+        STATUS_CHANGED = 'status_changed', 'Status changed'
+        ARCHIVED = 'archived', 'Application archived'
+        RESTORED = 'restored', 'Application restored'
+
+    application = models.ForeignKey(
+        Application,
+        on_delete=models.CASCADE,
+        related_name='activities',
+    )
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    previous_status = models.CharField(
+        max_length=20,
+        choices=Application.Status.choices,
+        null=True,
+        blank=True,
+    )
+    new_status = models.CharField(
+        max_length=20,
+        choices=Application.Status.choices,
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(
+                fields=['application', 'created_at'],
+                name='api_activity_app_created_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.application_id}: {self.get_event_type_display()}"
+
+
+class ApplicationReminder(models.Model):
+    application = models.ForeignKey(
+        Application,
+        on_delete=models.CASCADE,
+        related_name='reminders',
+    )
+    title = models.CharField(max_length=200)
+    due_date = models.DateField()
+    due_time = models.TimeField(null=True, blank=True)
+    note = models.TextField(blank=True)
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['due_date', 'due_time', 'id']
+        indexes = [
+            models.Index(
+                fields=['application', 'enabled', 'due_date'],
+                name='api_reminder_app_enabled_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.title} for application {self.application_id}"

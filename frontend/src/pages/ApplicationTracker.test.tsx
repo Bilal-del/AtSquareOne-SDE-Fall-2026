@@ -6,11 +6,19 @@ import ApplicationTracker from './ApplicationTracker'
 import { makeApplication } from '../test/fixtures/applications'
 
 const apiMocks = vi.hoisted(() => ({
+  archiveApplication: vi.fn(),
   createApplication: vi.fn(),
+  createApplicationReminder: vi.fn(),
   deleteApplication: vi.fn(),
+  deleteApplicationReminder: vi.fn(),
   findApplicationDuplicates: vi.fn(),
   getAllApplications: vi.fn(),
+  getApplicationActivity: vi.fn(),
+  getApplicationReminders: vi.fn(),
+  restoreApplication: vi.fn(),
+  setApplicationRemindersEnabled: vi.fn(),
   updateApplication: vi.fn(),
+  updateApplicationReminder: vi.fn(),
 }))
 
 vi.mock('../api/applications', () => apiMocks)
@@ -33,12 +41,10 @@ function deferred<T>() {
 
 describe('ApplicationTracker list regression coverage', () => {
   beforeEach(() => {
-    apiMocks.createApplication.mockReset()
-    apiMocks.deleteApplication.mockReset()
-    apiMocks.findApplicationDuplicates.mockReset()
+    Object.values(apiMocks).forEach((mock) => mock.mockReset())
     apiMocks.findApplicationDuplicates.mockResolvedValue([])
-    apiMocks.getAllApplications.mockReset()
-    apiMocks.updateApplication.mockReset()
+    apiMocks.getApplicationActivity.mockResolvedValue([])
+    apiMocks.getApplicationReminders.mockResolvedValue([])
   })
 
   it('renders a loading state until applications arrive', async () => {
@@ -149,5 +155,44 @@ describe('ApplicationTracker list regression coverage', () => {
     await waitFor(() => expect(apiMocks.deleteApplication).toHaveBeenCalledWith(7))
     expect(await screen.findByText('No applications are being tracked yet.')).toBeInTheDocument()
     expect(screen.getByText('Staff Engineer was removed successfully.')).toBeInTheDocument()
+  })
+
+  it('loads Active, Archived, and All archive views from the API', async () => {
+    const user = userEvent.setup()
+    const active = makeApplication({ id: 1, job_title: 'Active Role' })
+    const archived = makeApplication({
+      id: 2,
+      job_title: 'Archived Role',
+      archived_at: '2026-11-20T12:00:00Z',
+    })
+    apiMocks.getAllApplications.mockImplementation(
+      ({ archive_state }: { archive_state: 'active' | 'archived' | 'all' }) => {
+        if (archive_state === 'archived') return Promise.resolve([archived])
+        if (archive_state === 'all') return Promise.resolve([active, archived])
+        return Promise.resolve([active])
+      },
+    )
+    renderTracker()
+
+    expect(await screen.findByText('Active Role')).toBeInTheDocument()
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Filter by archive state' }),
+      'archived',
+    )
+    expect(await screen.findByText('Archived Role')).toBeInTheDocument()
+    expect(
+      screen.getByText('Archived', {
+        selector: '.application-archived-badge',
+      })
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Filter by archive state' }),
+      'all',
+    )
+    expect(await screen.findByText('Active Role')).toBeInTheDocument()
+    expect(screen.getByText('Archived Role')).toBeInTheDocument()
+    expect(apiMocks.getAllApplications).toHaveBeenCalledWith({ archive_state: 'all' })
   })
 })

@@ -1,6 +1,8 @@
 import re
 
+from django.db import transaction
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework import viewsets
@@ -10,10 +12,12 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Job, Application
+from .models import Application, ApplicationActivity, Job
 from .permissions import IsStaffOrReadOnly
 from .serializers import (
     ApplicationDuplicateSerializer,
+    ApplicationActivitySerializer,
+    ApplicationReminderSerializer,
     ApplicationSerializer,
     JobSerializer,
 )
@@ -77,6 +81,68 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+    @action(detail=True, methods=['get'])
+    def activity(self, request, pk=None):
+        application = self.get_object()
+        serializer = ApplicationActivitySerializer(
+            application.activities.all(),
+            many=True,
+        )
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get', 'post'])
+    def reminders(self, request, pk=None):
+        application = self.get_object()
+        if request.method == 'GET':
+            serializer = ApplicationReminderSerializer(
+                application.reminders.all(),
+                many=True,
+            )
+            return Response(serializer.data)
+
+        serializer = ApplicationReminderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(application=application)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=['patch', 'delete'],
+        url_path=r'reminders/(?P<reminder_id>\d+)',
+    )
+    def reminder_detail(self, request, reminder_id=None, pk=None):
+        application = self.get_object()
+        reminder = get_object_or_404(
+            application.reminders,
+            pk=reminder_id,
+        )
+        if request.method == 'DELETE':
+            reminder.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = ApplicationReminderSerializer(
+            reminder,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='reminder-control')
+    def reminder_control(self, request, pk=None):
+        application = self.get_object()
+        enabled = request.data.get('enabled')
+        if not isinstance(enabled, bool):
+            raise ValidationError({
+                'enabled': 'Enter true to enable or false to disable reminders.',
+            })
+        affected = application.reminders.exclude(enabled=enabled).update(
+            enabled=enabled,
+            updated_at=timezone.now(),
+        )
+        return Response({'enabled': enabled, 'affected': affected})
+
     @action(detail=False, methods=['get'], url_path='duplicates')
     def duplicates(self, request):
         job_id = None
@@ -139,23 +205,62 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def archive(self, request, pk=None):
-        application = self.get_object()
-        if application.archived_at is None:
-            # Reminder state changes will join this operation transactionally
-            # when the reminder domain is introduced.
+        owned_application = self.get_object()
+        reminder_action = request.data.get('reminder_action', 'continue')
+        if reminder_action not in {'continue', 'pause'}:
+            raise ValidationError({
+                'reminder_action': 'Use continue or pause.',
+            })
+
+        with transaction.atomic():
+            application = Application.objects.select_for_update().get(
+                pk=owned_application.pk,
+                owner=request.user,
+            )
+            if application.archived_at is not None:
+                return Response(self.get_serializer(application).data)
+
+            if reminder_action == 'pause':
+                application.reminders.filter(enabled=True).update(
+                    enabled=False,
+                    updated_at=timezone.now(),
+                )
             application.archived_at = timezone.now()
             application.save(update_fields=['archived_at', 'updated_at'])
+            ApplicationActivity.objects.create(
+                application=application,
+                event_type=ApplicationActivity.EventType.ARCHIVED,
+            )
 
         return Response(self.get_serializer(application).data)
 
     @action(detail=True, methods=['post'])
     def restore(self, request, pk=None):
-        application = self.get_object()
-        if application.archived_at is not None:
-            # Reminder state changes will join this operation transactionally
-            # when the reminder domain is introduced.
+        owned_application = self.get_object()
+        reminder_action = request.data.get('reminder_action', 'enable')
+        if reminder_action not in {'enable', 'disable'}:
+            raise ValidationError({
+                'reminder_action': 'Use enable or disable.',
+            })
+
+        with transaction.atomic():
+            application = Application.objects.select_for_update().get(
+                pk=owned_application.pk,
+                owner=request.user,
+            )
+            if application.archived_at is None:
+                return Response(self.get_serializer(application).data)
+
+            application.reminders.update(
+                enabled=reminder_action == 'enable',
+                updated_at=timezone.now(),
+            )
             application.archived_at = None
             application.save(update_fields=['archived_at', 'updated_at'])
+            ApplicationActivity.objects.create(
+                application=application,
+                event_type=ApplicationActivity.EventType.RESTORED,
+            )
 
         return Response(self.get_serializer(application).data)
 

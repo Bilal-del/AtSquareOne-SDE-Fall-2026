@@ -1,6 +1,12 @@
+from django.db import transaction
 from rest_framework import serializers
 
-from .models import Job, Application
+from .models import (
+    Application,
+    ApplicationActivity,
+    ApplicationReminder,
+    Job,
+)
 
 
 class JobSerializer(serializers.ModelSerializer):
@@ -86,15 +92,34 @@ class ApplicationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        job = validated_data.get('job')
-        if job is not None:
-            validated_data['job_title'] = job.title
-            validated_data['company'] = job.company
-            validated_data['source'] = Application.Source.SQUAREONE
-        else:
-            validated_data['source'] = Application.Source.MANUAL
+        with transaction.atomic():
+            job = validated_data.get('job')
+            if job is not None:
+                validated_data['job_title'] = job.title
+                validated_data['company'] = job.company
+                validated_data['source'] = Application.Source.SQUAREONE
+            else:
+                validated_data['source'] = Application.Source.MANUAL
 
-        return super().create(validated_data)
+            application = super().create(validated_data)
+            ApplicationActivity.objects.create(
+                application=application,
+                event_type=ApplicationActivity.EventType.CREATED,
+            )
+            return application
+
+    def update(self, instance, validated_data):
+        previous_status = instance.status
+        with transaction.atomic():
+            application = super().update(instance, validated_data)
+            if application.status != previous_status:
+                ApplicationActivity.objects.create(
+                    application=application,
+                    event_type=ApplicationActivity.EventType.STATUS_CHANGED,
+                    previous_status=previous_status,
+                    new_status=application.status,
+                )
+            return application
 
 
 class ApplicationDuplicateSerializer(serializers.ModelSerializer):
@@ -105,3 +130,42 @@ class ApplicationDuplicateSerializer(serializers.ModelSerializer):
             'status', 'archived_at',
         ]
         read_only_fields = fields
+
+
+class ApplicationActivitySerializer(serializers.ModelSerializer):
+    description = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ApplicationActivity
+        fields = [
+            'id', 'event_type', 'previous_status', 'new_status',
+            'description', 'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_description(self, activity):
+        if activity.event_type == ApplicationActivity.EventType.STATUS_CHANGED:
+            previous_label = Application.Status(activity.previous_status).label
+            new_label = Application.Status(activity.new_status).label
+            return f'Status changed from {previous_label} to {new_label}.'
+        return {
+            ApplicationActivity.EventType.CREATED: 'Application created.',
+            ApplicationActivity.EventType.ARCHIVED: 'Application archived.',
+            ApplicationActivity.EventType.RESTORED: 'Application restored.',
+        }[activity.event_type]
+
+
+class ApplicationReminderSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(
+        max_length=200,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+
+    class Meta:
+        model = ApplicationReminder
+        fields = [
+            'id', 'title', 'due_date', 'due_time', 'note', 'enabled',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']

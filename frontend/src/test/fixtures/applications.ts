@@ -1,6 +1,8 @@
 import type {
   Application,
+  ApplicationActivity,
   ApplicationDuplicate,
+  ApplicationReminder,
 } from '../../api/applications'
 
 export function makeApplication(
@@ -37,6 +39,36 @@ export function makeDuplicate(
     source: 'manual',
     status: 'saved',
     archived_at: null,
+    ...overrides,
+  }
+}
+
+export function makeReminder(
+  overrides: Partial<ApplicationReminder> = {},
+): ApplicationReminder {
+  return {
+    id: 1,
+    title: 'Follow up with recruiter',
+    due_date: '2026-12-01',
+    due_time: null,
+    note: '',
+    enabled: true,
+    created_at: '2026-11-21T12:00:00Z',
+    updated_at: '2026-11-21T12:00:00Z',
+    ...overrides,
+  }
+}
+
+export function makeActivity(
+  overrides: Partial<ApplicationActivity> = {},
+): ApplicationActivity {
+  return {
+    id: 1,
+    event_type: 'created',
+    previous_status: null,
+    new_status: null,
+    description: 'Application created.',
+    created_at: '2026-11-21T12:00:00Z',
     ...overrides,
   }
 }

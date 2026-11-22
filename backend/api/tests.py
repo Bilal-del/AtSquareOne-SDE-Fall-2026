@@ -4,7 +4,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Application, Job
+from .models import Application, ApplicationReminder, Job
 
 
 APPLICATION_STATUSES = (
@@ -239,6 +239,44 @@ class ApplicationAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['id'], own_application.id)
+
+    def test_application_list_includes_next_enabled_reminder_summary(self):
+        own_application = self.create_application(self.user_a)
+        other_application = self.create_application(self.user_b)
+        ApplicationReminder.objects.create(
+            application=own_application,
+            title='Disabled earlier reminder',
+            due_date='2026-11-22',
+            enabled=False,
+        )
+        expected = ApplicationReminder.objects.create(
+            application=own_application,
+            title='Prepare interview notes',
+            due_date='2026-11-23',
+            due_time='09:30',
+        )
+        ApplicationReminder.objects.create(
+            application=own_application,
+            title='Later follow-up',
+            due_date='2026-11-24',
+        )
+        ApplicationReminder.objects.create(
+            application=other_application,
+            title='Private reminder',
+            due_date='2026-11-21',
+        )
+        self.client.force_authenticate(user=self.user_a)
+
+        response = self.client.get('/api/applications/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['next_reminder'], {
+            'id': expected.id,
+            'title': 'Prepare interview notes',
+            'due_date': '2026-11-23',
+            'due_time': '09:30:00',
+        })
 
     def test_owner_cannot_be_changed_by_client(self):
         application = self.create_application(self.user_a)

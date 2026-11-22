@@ -41,6 +41,7 @@ function deferred<T>() {
 
 describe('ApplicationTracker list regression coverage', () => {
   beforeEach(() => {
+    window.localStorage.setItem('squareone.applicationTracker.view', 'list')
     Object.values(apiMocks).forEach((mock) => mock.mockReset())
     apiMocks.findApplicationDuplicates.mockResolvedValue([])
     apiMocks.getApplicationActivity.mockResolvedValue([])
@@ -232,5 +233,60 @@ describe('ApplicationTracker list regression coverage', () => {
     expect(await screen.findByText('Active', { selector: 'dd' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Close application details' }))
     expect(screen.getByRole('row', { name: /Archive From Details Example Corp/ })).toBeInTheDocument()
+  })
+})
+
+describe('ApplicationTracker view preferences', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    Object.values(apiMocks).forEach((mock) => mock.mockReset())
+    apiMocks.getAllApplications.mockResolvedValue([makeApplication()])
+    apiMocks.getApplicationActivity.mockResolvedValue([])
+    apiMocks.getApplicationReminders.mockResolvedValue([])
+  })
+
+  it('uses Kanban on first visit and switches to the preserved List view', async () => {
+    const user = userEvent.setup()
+    renderTracker()
+
+    expect(await screen.findByRole('button', { name: 'Kanban', pressed: true })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Saved' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Applied' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Interviewing' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Offered' })).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Manual entry Software Engineer Example Corp/ }))
+    expect(screen.getByRole('heading', { name: 'Job information' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close application details' }))
+
+    await user.click(screen.getByRole('button', { name: 'List' }))
+    expect(screen.getByRole('button', { name: 'List', pressed: true })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Tracked application records' })).toBeInTheDocument()
+    expect(window.localStorage.getItem('squareone.applicationTracker.view')).toBe('list')
+  })
+
+  it('restores List from localStorage on a later visit', async () => {
+    window.localStorage.setItem('squareone.applicationTracker.view', 'list')
+    renderTracker()
+
+    expect(await screen.findByRole('button', { name: 'List', pressed: true })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Tracked application records' })).toBeInTheDocument()
+  })
+
+  it('rolls back an optimistic board move when the API update fails', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    apiMocks.updateApplication.mockRejectedValue(new Error('offline'))
+    renderTracker()
+
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Change status for Software Engineer' }),
+      'applied',
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('previous status was restored')
+    expect(screen.getByRole('region', { name: 'Saved' })).toHaveTextContent('Software Engineer')
+    expect(apiMocks.updateApplication).toHaveBeenCalledWith(1, { status: 'applied' })
   })
 })

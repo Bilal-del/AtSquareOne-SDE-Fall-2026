@@ -23,6 +23,14 @@ export interface Application {
     archived_at: string | null;
     created_at: string;
     updated_at: string;
+    next_reminder: ApplicationReminderSummary | null;
+}
+
+export interface ApplicationReminderSummary {
+  id: number;
+  title: string;
+  due_date: string;
+  due_time: string | null;
 }
 
 interface ApplicationPersonalFields {

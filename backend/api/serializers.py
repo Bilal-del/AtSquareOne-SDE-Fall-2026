@@ -20,6 +20,7 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
+    next_reminder = serializers.SerializerMethodField()
     job_title = serializers.CharField(
         max_length=200,
         required=False,
@@ -40,12 +41,28 @@ class ApplicationSerializer(serializers.ModelSerializer):
             'source', 'location', 'external_job_url',
             'work_arrangement', 'employment_type',
             'status', 'applied_date', 'notes', 'archived_at',
-            'created_at', 'updated_at',
+            'created_at', 'updated_at', 'next_reminder',
         ]
         read_only_fields = [
             'id', 'owner', 'source', 'archived_at',
-            'created_at', 'updated_at',
+            'created_at', 'updated_at', 'next_reminder',
         ]
+
+    def get_next_reminder(self, application):
+        reminders = getattr(application, 'enabled_reminder_summaries', None)
+        reminder = reminders[0] if reminders else None
+        if reminders is None:
+            reminder = application.reminders.filter(enabled=True).first()
+        if reminder is None:
+            return None
+        return {
+            'id': reminder.id,
+            'title': reminder.title,
+            'due_date': reminder.due_date.isoformat(),
+            'due_time': (
+                reminder.due_time.isoformat() if reminder.due_time else None
+            ),
+        }
 
     def validate(self, attrs):
         errors = {}

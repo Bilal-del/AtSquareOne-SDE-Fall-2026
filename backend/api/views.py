@@ -1,7 +1,7 @@
 import re
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -12,7 +12,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Application, ApplicationActivity, Job
+from .models import Application, ApplicationActivity, ApplicationReminder, Job
 from .permissions import IsStaffOrReadOnly
 from .serializers import (
     ApplicationDuplicateSerializer,
@@ -44,6 +44,14 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
         queryset = Application.objects.filter(
             owner=self.request.user
+        ).prefetch_related(
+            Prefetch(
+                'reminders',
+                queryset=ApplicationReminder.objects.filter(enabled=True).order_by(
+                    'due_date', 'due_time', 'id',
+                ),
+                to_attr='enabled_reminder_summaries',
+            )
         ).order_by('-created_at')
 
         if getattr(self, 'action', None) != 'list':

@@ -185,6 +185,44 @@
   font-weight: 700;
 }
 
+.save-job-control__duplicate {
+  display: flex;
+  width: 100%;
+  padding: 14px;
+  flex-direction: column;
+  border: 1px solid #d8c58d;
+  border-radius: 10px;
+  background: #fbf6e8;
+  gap: 8px;
+}
+
+.save-job-control__duplicate strong {
+  color: #755d1d;
+  font-size: 14px;
+}
+
+.save-job-control__duplicate span,
+.save-job-control__duplicate li {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.save-job-control__duplicate ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.save-job-control__duplicate-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.save-job-control__duplicate-actions button:first-child {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
 .save-job-control__message {
   margin: 0;
   font-size: 12px;

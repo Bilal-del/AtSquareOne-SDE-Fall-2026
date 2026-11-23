@@ -24,6 +24,56 @@
     font-size: 15px;
 }
 
+.application-tracker-heading__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.application-view-toggle {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--color-border);
+    border-radius: 9px;
+    background: #f3f6f3;
+}
+
+.application-view-toggle button {
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.application-view-toggle button:hover,
+.application-view-toggle__active {
+    background: var(--color-surface) !important;
+    color: var(--color-primary) !important;
+    box-shadow: 0 1px 4px rgba(20, 46, 43, 0.12);
+}
+
+.application-archive-filter {
+    display: flex;
+    align-items: center;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+    gap: 7px;
+}
+
+.application-archive-filter select {
+    min-height: 40px;
+    padding: 8px 30px 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
 .application-tracker-demo-badge,
 .application-tracker-state__badge {
     display: inline-flex;
@@ -147,29 +197,330 @@
     background: var(--color-accent);
 }
 
-.application-tracker-planned-action {
-    display: inline-flex;
-    min-height: 40px;
-    padding: 8px 12px;
-    align-items: center;
-    border: 1px dashed var(--color-border);
-    border-radius: 8px;
-    background: var(--color-surface);
-    color: var(--color-text-secondary);
-    font-size: 13px;
-    gap: 8px;
-    white-space: nowrap;
+.application-kanban-section {
+    min-width: 0;
 }
 
-.application-tracker-planned-action span {
-    padding: 3px 5px;
-    border-radius: 5px;
+.application-kanban-controls {
+    display: flex;
+    margin-bottom: 14px;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.application-kanban-controls h2 {
+    margin: 0 0 3px;
+    font-size: 18px;
+}
+
+.application-kanban-controls > div > span {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.application-column-manager {
+    position: relative;
+    z-index: 5;
+}
+
+.application-column-manager__trigger {
+    border-color: var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.application-column-manager__panel {
+    display: grid;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 230px;
+    margin: 0;
+    padding: 14px;
+    grid-template-columns: 1fr;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+    box-shadow: 0 12px 30px rgba(20, 46, 43, 0.18);
+    gap: 5px;
+}
+
+.application-column-manager__panel legend {
+    padding: 0 4px;
+    color: var(--color-text);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.application-column-manager__panel label {
+    display: flex;
+    padding: 7px 6px;
+    align-items: center;
+    border-radius: 6px;
+    font-size: 13px;
+    gap: 9px;
+}
+
+.application-column-manager__panel label:hover {
     background: var(--color-accent);
+}
+
+.application-kanban-error {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border: 1px solid #d9a9a2;
+    border-radius: 8px;
+    background: #f5e8e6;
+    color: #8b443b;
+    font-size: 13px;
+}
+
+.application-kanban-board {
+    display: grid;
+    padding: 2px 2px 16px;
+    overflow-x: auto;
+    grid-auto-columns: minmax(280px, 1fr);
+    grid-auto-flow: column;
+    gap: 16px;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+}
+
+.application-kanban-column {
+    min-width: 280px;
+    min-height: 430px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: #f3f6f3;
+    transition: border-color 150ms ease, background 150ms ease;
+}
+
+.application-kanban-column--drop {
+    border-color: var(--color-primary);
+    background: #e6f1ea;
+    box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.application-kanban-column > header {
+    display: flex;
+    padding: 2px 2px 12px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.application-kanban-column > header h3 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.application-kanban-column > header > span {
+    display: inline-flex;
+    min-width: 25px;
+    height: 25px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-surface);
+    color: var(--color-primary);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.application-kanban-column__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.application-kanban-column__empty {
+    margin: 2px 0 0;
+    padding: 20px 12px;
+    border: 1px dashed #c5cfca;
+    border-radius: 10px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    text-align: center;
+}
+
+.application-kanban-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+    box-shadow: 0 2px 8px rgba(20, 46, 43, 0.06);
+    transition: opacity 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+    touch-action: pan-y;
+}
+
+.application-kanban-card:hover {
+    box-shadow: 0 7px 18px rgba(20, 46, 43, 0.1);
+}
+
+.application-kanban-card--dragging {
+    opacity: 0.55;
+    transform: rotate(1deg) scale(0.98);
+}
+
+.application-kanban-card__details {
+    display: flex;
+    width: 100%;
+    padding: 15px;
+    align-items: flex-start;
+    flex-direction: column;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text);
+    text-align: left;
+    gap: 5px;
+}
+
+.application-kanban-card__details:hover {
+    background: transparent;
+    color: var(--color-text);
+}
+
+.application-kanban-card__source {
     color: var(--color-primary);
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+.application-kanban-card__details > strong {
+    margin-top: 3px;
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.application-kanban-card__company {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.application-kanban-card__location,
+.application-kanban-card__date {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+}
+
+.application-kanban-card__tags {
+    display: flex;
+    margin-top: 4px;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.application-kanban-card__tags span {
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: #eef2ef;
+    color: #53655f;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.application-kanban-card__reminder {
+    display: grid;
+    width: 100%;
+    margin-top: 7px;
+    padding: 9px 10px;
+    grid-template-columns: 1fr auto;
+    border-radius: 8px;
+    background: var(--color-accent);
+    gap: 2px 8px;
+}
+
+.application-kanban-card__reminder > span {
+    grid-column: 1 / -1;
+    color: var(--color-primary);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.application-kanban-card__reminder strong,
+.application-kanban-card__reminder time {
+    font-size: 11px;
+}
+
+.application-kanban-card__reminder time {
+    color: var(--color-text-secondary);
+}
+
+.application-kanban-card__reminder--overdue {
+    background: #f5e8e6;
+}
+
+.application-kanban-card__reminder--overdue > span {
+    color: #8b443b;
+}
+
+.application-kanban-card__status {
+    display: flex;
+    padding: 10px 12px;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 10px;
+    font-weight: 800;
+    gap: 8px;
+    text-transform: uppercase;
+}
+
+.application-kanban-card__status select {
+    width: min(150px, 68%);
+    min-height: 34px;
+    padding: 6px 26px 6px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 7px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 11px;
+    text-transform: none;
+}
+
+.application-kanban-card__saving {
+    display: block;
+    padding: 0 12px 9px;
+    color: var(--color-primary);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.application-kanban-empty {
+    display: flex;
+    min-height: 330px;
+    padding: 30px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    border: 1px dashed var(--color-border);
+    border-radius: 14px;
+    background: #f8faf8;
+    text-align: center;
+}
+
+.application-kanban-empty h2 {
+    margin: 0 0 6px;
+    font-size: 20px;
+}
+
+.application-kanban-empty p {
+    margin: 0;
+    color: var(--color-text-secondary);
+}
+
+.application-kanban-empty button {
+    margin-top: 18px;
 }
 
 .application-table-wrap {
@@ -226,6 +577,10 @@
     border-top: 1px solid var(--color-border);
 }
 
+.application-table__row--archived {
+    background: #f7f7f5;
+}
+
 .application-table td {
     color: var(--color-text-secondary);
     font-size: 13px;
@@ -244,6 +599,19 @@
 
 .application-table td:first-child strong {
     font-size: 14px;
+}
+
+.application-archived-badge {
+    width: fit-content;
+    margin-top: 6px;
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: #e9e9ed;
+    color: #4f505d;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
 .application-table a {
@@ -314,9 +682,24 @@
     color: var(--color-primary);
 }
 
+.application-status--accepted {
+    background: #dcefe4;
+    color: #285f3d;
+}
+
 .application-status--rejected {
     background: #f5e8e6;
     color: #8b443b;
+}
+
+.application-status--withdrawn {
+    background: #f3ece2;
+    color: #765331;
+}
+
+.application-status--closed {
+    background: #e9e9ed;
+    color: #4f505d;
 }
 
 .application-pagination {
@@ -431,6 +814,109 @@
   box-shadow: 0 20px 60px rgba(20, 46, 43, 0.22);
 }
 
+.application-dialog--wide {
+  width: min(calc(100% - 32px), 760px);
+}
+
+.application-dialog--details {
+  width: min(calc(100% - 32px), 1040px);
+}
+
+.application-details-actions {
+  display: flex;
+  margin-top: 20px;
+  padding-bottom: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  gap: 10px;
+}
+
+.application-details-actions__danger {
+  margin-left: auto;
+  border-color: #d9a9a2;
+  background: var(--color-surface);
+  color: #8b443b;
+}
+
+.application-details-actions__danger:hover {
+  background: #f5e8e6;
+}
+
+.application-details-summary {
+  display: grid;
+  margin-top: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.application-details-summary > section {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #fbfcfb;
+}
+
+.application-details-summary h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+.application-details-fields {
+  display: grid;
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.application-details-fields > div {
+  min-width: 0;
+}
+
+.application-details-fields dt {
+  margin-bottom: 4px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.application-details-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.application-details-fields a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.application-details-fields__wide {
+  grid-column: 1 / -1;
+}
+
+.application-details-fields__wide dd {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  white-space: pre-wrap;
+}
+
+.application-details-fields__empty {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.application-details-loading {
+  margin-top: 24px !important;
+  padding: 16px;
+  border-radius: 9px;
+  background: #f3f6f3;
+}
+
 .application-dialog::backdrop {
   background: rgba(20, 46, 43, 0.48);
 }
@@ -490,6 +976,41 @@
   font-size: 13px;
   font-weight: 700;
   gap: 7px;
+}
+
+.application-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.application-dialog__field--wide {
+  grid-column: 1 / -1;
+}
+
+.application-duplicate-check {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.application-duplicate-check > div {
+  padding: 12px;
+  border: 1px solid #d8c58d;
+  border-radius: 8px;
+  background: #fbf6e8;
+}
+
+.application-duplicate-check strong {
+  color: #755d1d;
+}
+
+.application-duplicate-check p {
+  margin: 3px 0;
+}
+
+.application-duplicate-check ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
 }
 
 .application-dialog__field input,
@@ -564,6 +1085,267 @@
   margin-top: 6px;
 }
 
+.application-archive-choices {
+  display: flex;
+  margin: 20px 0 0;
+  padding: 0;
+  flex-direction: column;
+  border: 0;
+  gap: 10px;
+}
+
+.application-archive-choices legend {
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.application-archive-choices label {
+  display: flex;
+  padding: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  font-size: 13px;
+  gap: 10px;
+}
+
+.application-archive-choices input {
+  margin-top: 3px;
+}
+
+.application-details-layout {
+  display: grid;
+  margin-top: 24px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 28px;
+}
+
+.application-details-layout > section {
+  min-width: 0;
+}
+
+.application-details-layout h3,
+.application-details-layout h4 {
+  margin: 0;
+}
+
+.application-details-section-heading {
+  display: flex;
+  margin-bottom: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.application-details-section-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.application-details-section-heading span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.application-reminder-bell {
+  display: inline-flex;
+  min-height: 36px;
+  padding: 7px 10px;
+  align-items: center;
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.application-reminder-list,
+.application-activity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.application-reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.application-reminder {
+  display: grid;
+  padding: 13px;
+  align-items: flex-start;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  gap: 11px;
+}
+
+.application-reminder--disabled {
+  opacity: 0.65;
+}
+
+.application-reminder-toggle {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 3px;
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.application-reminder-toggle span {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.application-reminder-toggle[aria-pressed='true'] span {
+  background: var(--color-primary);
+}
+
+.application-reminder__content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  gap: 4px;
+}
+
+.application-reminder__content > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.application-reminder__content strong {
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.application-reminder__content p {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.application-reminder__timing {
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.application-reminder__timing--upcoming {
+  background: var(--color-accent);
+  color: var(--color-primary);
+}
+
+.application-reminder__timing--overdue {
+  background: #f5e8e6;
+  color: #8b443b;
+}
+
+.application-reminder__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.application-reminder__actions button {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 11px;
+}
+
+.application-reminder-form {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+}
+
+.application-details-empty {
+  padding: 14px;
+  border-radius: 9px;
+  background: #f3f6f3;
+}
+
+.application-documents { margin-top:24px; padding:22px; border:1px solid var(--color-border); border-radius:12px; background:#fff; }
+.application-document-list { display:grid; gap:8px; padding:0; list-style:none; }
+.application-document-list li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; border:1px solid var(--color-border); border-radius:9px; }
+.application-document-list li>div { display:flex; align-items:center; gap:8px; }
+.application-document-list li>div:first-child { align-items:flex-start; flex-direction:column; gap:2px; }
+.application-document-list span { color:var(--color-text-secondary); font-size:12px; }
+.application-document-list button { padding:7px 10px; font-size:12px; }
+.application-document-detach { background:#fff; border-color:var(--color-border); color:var(--color-text); }
+.application-document-selector { display:flex; align-items:flex-end; gap:10px; margin-top:14px; }
+.application-document-selector label { display:grid; flex:1; gap:5px; color:var(--color-text-secondary); font-size:12px; font-weight:700; }
+.application-document-selector select { min-height:42px; padding:8px; border:1px solid var(--color-border); border-radius:8px; background:#fff; }
+@media (max-width:600px) { .application-document-list li,.application-document-selector { align-items:stretch; flex-direction:column; } .application-document-list li>div:last-child { display:grid; grid-template-columns:1fr 1fr; } }
+
+.application-activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.application-activity-list li {
+  display: grid;
+  position: relative;
+  padding: 0 0 20px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.application-activity-list li::before {
+  position: absolute;
+  top: 9px;
+  bottom: -2px;
+  left: 5px;
+  width: 2px;
+  background: var(--color-border);
+  content: '';
+}
+
+.application-activity-list li:last-child::before {
+  display: none;
+}
+
+.application-activity-list li > span {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 3px solid var(--color-accent);
+  border-radius: 50%;
+  background: var(--color-primary);
+  z-index: 1;
+}
+
+.application-activity-list div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.application-activity-list strong {
+  font-size: 13px;
+}
+
+.application-activity-list time {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
 @media (max-width: 1120px) {
     .application-overview {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -584,6 +1366,14 @@
     .application-table {
         min-width: 980px;
     }
+
+    .application-details-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .application-details-summary {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 720px) {
@@ -594,6 +1384,15 @@
     .application-tracker-heading {
         flex-direction: column;
         gap: 14px;
+    }
+
+    .application-tracker-heading__actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .application-view-toggle {
+        order: -1;
     }
 
     .application-tracker-heading h1 {
@@ -616,8 +1415,7 @@
     .application-tracker-toolbar,
     .application-tracker-search,
     .application-tracker-search label,
-    .application-tracker-filter,
-    .application-tracker-planned-action {
+    .application-tracker-filter {
         width: 100%;
     }
 
@@ -636,8 +1434,26 @@
         flex: 1;
     }
 
-    .application-tracker-planned-action {
-        justify-content: center;
+    .application-archive-filter {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .application-kanban-controls {
+        align-items: flex-start;
+    }
+
+    .application-kanban-board {
+        width: calc(100vw - 32px);
+        margin-right: -16px;
+        grid-auto-columns: minmax(270px, 82vw);
+        scroll-padding-left: 2px;
+        scroll-snap-type: x proximity;
+    }
+
+    .application-kanban-column {
+        min-width: 270px;
+        scroll-snap-align: start;
     }
 
     .application-table-wrap {
@@ -753,8 +1569,66 @@
     width: 100%;
   }
 
+  .application-view-toggle {
+    width: 100%;
+  }
+
+  .application-view-toggle button {
+    flex: 1;
+  }
+
+  .application-kanban-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .application-column-manager__trigger {
+    width: 100%;
+  }
+
+  .application-column-manager__panel {
+    right: auto;
+    left: 0;
+    width: 100%;
+  }
+
   .application-dialog {
     padding: 22px 18px;
+  }
+
+  .application-details-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .application-details-actions button,
+  .application-details-actions__danger {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .application-details-summary {
+    gap: 16px;
+  }
+
+  .application-details-summary > section {
+    padding: 15px;
+  }
+
+  .application-details-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .application-details-fields__wide {
+    grid-column: auto;
+  }
+
+  .application-dialog__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-dialog__field--wide {
+    grid-column: auto;
   }
 
   .application-dialog__actions {
@@ -763,5 +1637,19 @@
 
   .application-dialog__actions button {
     width: 100%;
+  }
+
+  .application-reminder {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .application-reminder__actions {
+    grid-column: 2;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .application-details-section-heading {
+    flex-direction: column;
   }
 }

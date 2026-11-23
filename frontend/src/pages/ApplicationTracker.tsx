@@ -2,32 +2,34 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
     getAllApplications,
+    updateApplication,
     type Application,
-    type ApplicationStatus,
 } from '../api/applications';
+import ApplicationCreateDialog from '../components/ApplicationCreateDialog';
+import ApplicationArchiveDialog from '../components/ApplicationArchiveDialog';
 import ApplicationDeleteDialog from '../components/ApplicationDeleteDialog';
+import ApplicationDetailsDialog from '../components/ApplicationDetailsDialog';
 import ApplicationEditDialog from '../components/ApplicationEditDialog';
+import ApplicationKanbanBoard from '../components/ApplicationKanbanBoard';
+import {
+    APPLICATION_STATUSES,
+    APPLICATION_STATUS_LABELS,
+    type ApplicationStatus,
+} from '../constants/applicationStatuses';
 import './ApplicationTracker.css';
 
-const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-    saved: 'Saved',
-    applied: 'Applied',
-    interviewing: 'Interviewing',
-    offered: 'Offered',
-    rejected: 'Rejected',
-};
-
-const OVERVIEW_STATUSES: Array<{
-    status: Exclude<ApplicationStatus, 'rejected'>;
-    label: string;
-}> = [
-    { status: 'saved', label: 'Saved' },
-    { status: 'applied', label: 'Applied' },
-    { status: 'interviewing', label: 'Interviewing' },
-    { status: 'offered', label: 'Offers' },
-];
+const OVERVIEW_STATUSES = APPLICATION_STATUSES.slice(0, 4);
 
 const APPLICATIONS_PER_PAGE = 5;
+const VIEW_STORAGE_KEY = 'squareone.applicationTracker.view';
+
+type TrackerView = 'kanban' | 'list';
+
+function getInitialView(): TrackerView {
+    return window.localStorage.getItem(VIEW_STORAGE_KEY) === 'list'
+        ? 'list'
+        : 'kanban';
+}
 
 function formatDate(value: string | null): string {
     if (!value) {
@@ -66,18 +68,32 @@ function ApplicationTracker() {
     const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>(
         'all',
     );
+    const [archiveFilter, setArchiveFilter] = useState<'active' | 'archived' | 'all'>(
+        'active',
+    );
     const [currentPage, setCurrentPage] = useState(1);
     const [retryKey, setRetryKey] = useState(0);
     const [editingApplication, setEditingApplication] = useState<Application | null>(null);
     const [deletingApplication, setDeletingApplication] = useState<Application | null>(null);
+    const [creatingApplication, setCreatingApplication] = useState(false);
+    const [viewingApplication, setViewingApplication] = useState<Application | null>(null);
+    const [changingArchiveApplication, setChangingArchiveApplication] = useState<Application | null>(null);
+    const [resumeDetailsApplication, setResumeDetailsApplication] = useState<Application | null>(null);
     const [operationMessage, setOperationMessage] = useState<string | null>(null);
+    const [view, setView] = useState<TrackerView>(getInitialView);
+
+    useEffect(() => {
+        window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+    }, [view]);
 
     useEffect(() => {
         let active = true;
 
         async function fetchApplications() {
+            setLoading(true);
+            setError(null);
             try {
-                const data = await getAllApplications();
+                const data = await getAllApplications({ archive_state: archiveFilter });
 
                 if (active) {
                     setApplications(data);
@@ -99,16 +115,12 @@ function ApplicationTracker() {
         return () => {
             active = false;
         };
-    }, [retryKey]);
+    }, [archiveFilter, retryKey]);
 
     const statusCounts = useMemo(() => {
-        const counts: Record<ApplicationStatus, number> = {
-            saved: 0,
-            applied: 0,
-            interviewing: 0,
-            offered: 0,
-            rejected: 0,
-        };
+        const counts = Object.fromEntries(
+            APPLICATION_STATUSES.map(({ value }) => [value, 0]),
+        ) as Record<ApplicationStatus, number>;
 
         applications.forEach((application) => {
             counts[application.status] += 1;
@@ -117,19 +129,21 @@ function ApplicationTracker() {
         return counts;
     }, [applications]);
 
-    const filteredApplications = useMemo(() => {
+    const searchFilteredApplications = useMemo(() => {
         const normalizedSearch = appliedSearch.toLocaleLowerCase();
 
         return applications.filter((application) => {
             const searchableText = `${application.job_title} ${application.company}`
                 .toLocaleLowerCase();
-            const matchesSearch = searchableText.includes(normalizedSearch);
-            const matchesStatus =
-                statusFilter === 'all' || application.status === statusFilter;
-
-            return matchesSearch && matchesStatus;
+            return searchableText.includes(normalizedSearch);
         });
-    }, [applications, appliedSearch, statusFilter]);
+    }, [applications, appliedSearch]);
+
+    const filteredApplications = useMemo(() =>
+        searchFilteredApplications.filter((application) =>
+            statusFilter === 'all' || application.status === statusFilter
+        ),
+    [searchFilteredApplications, statusFilter]);
 
     const totalPages = Math.ceil(
         filteredApplications.length / APPLICATIONS_PER_PAGE,
@@ -149,7 +163,11 @@ function ApplicationTracker() {
             return firstVisiblePage + index;
         },
     );
-    const hasActiveFilters = Boolean(appliedSearch || statusFilter !== 'all');
+    const hasActiveFilters = Boolean(
+        appliedSearch
+        || (view === 'list' && statusFilter !== 'all')
+        || archiveFilter !== 'active',
+    );
 
     function handleSearch(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -161,6 +179,7 @@ function ApplicationTracker() {
         setSearchInput('');
         setAppliedSearch('');
         setStatusFilter('all');
+        setArchiveFilter('active');
         setCurrentPage(1);
     }
 
@@ -177,7 +196,24 @@ function ApplicationTracker() {
             ),
         );
         setEditingApplication(null);
+        if (resumeDetailsApplication?.id === updatedApplication.id) {
+            setViewingApplication(updatedApplication);
+            setResumeDetailsApplication(null);
+        }
         setOperationMessage(`${updatedApplication.job_title} was updated successfully.`);
+    }
+
+    function handleApplicationCreated(createdApplication: Application) {
+        setApplications((currentApplications) => [
+            createdApplication,
+            ...currentApplications,
+        ]);
+        setCreatingApplication(false);
+        setArchiveFilter('active');
+        setCurrentPage(1);
+        setOperationMessage(
+            `${createdApplication.job_title} was added to your tracker.`,
+        );
     }
 
     function handleApplicationMissing(id: number) {
@@ -185,6 +221,8 @@ function ApplicationTracker() {
             currentApplications.filter((application) => application.id !== id),
         );
         setEditingApplication(null);
+        setViewingApplication(null);
+        setResumeDetailsApplication(null);
         setOperationMessage('That application no longer exists. The tracker has been refreshed.');
     }
 
@@ -194,11 +232,95 @@ function ApplicationTracker() {
             currentApplications.filter((application) => application.id !== id),
         );
         setDeletingApplication(null);
+        setViewingApplication(null);
+        setResumeDetailsApplication(null);
         setOperationMessage(
             alreadyMissing
                 ? 'That application was already removed. The tracker has been refreshed.'
                 : `${removedApplication?.job_title ?? 'The application'} was removed successfully.`,
         );
+    }
+
+    function handleArchiveUpdated(updatedApplication: Application) {
+        setApplications((currentApplications) => {
+            if (archiveFilter === 'all') {
+                return currentApplications.map((application) =>
+                    application.id === updatedApplication.id
+                        ? updatedApplication
+                        : application,
+                );
+            }
+            const belongsInCurrentView = archiveFilter === 'active'
+                ? !updatedApplication.archived_at
+                : Boolean(updatedApplication.archived_at);
+            if (!belongsInCurrentView) {
+                return currentApplications.filter(
+                    (application) => application.id !== updatedApplication.id,
+                );
+            }
+            const alreadyPresent = currentApplications.some(
+                (application) => application.id === updatedApplication.id,
+            );
+            return alreadyPresent
+                ? currentApplications.map((application) =>
+                    application.id === updatedApplication.id
+                        ? updatedApplication
+                        : application,
+                )
+                : [updatedApplication, ...currentApplications];
+        });
+        setChangingArchiveApplication(null);
+        if (resumeDetailsApplication?.id === updatedApplication.id) {
+            setViewingApplication(updatedApplication);
+            setResumeDetailsApplication(null);
+        }
+        setCurrentPage(1);
+        setOperationMessage(
+            `${updatedApplication.job_title} was ${updatedApplication.archived_at ? 'archived' : 'restored'} successfully.`,
+        );
+    }
+
+    function resumeDetailsAfterCancel() {
+        if (resumeDetailsApplication) {
+            setViewingApplication(resumeDetailsApplication);
+            setResumeDetailsApplication(null);
+        }
+    }
+
+    function openManagementFromDetails(
+        application: Application,
+        action: 'edit' | 'archive' | 'delete',
+    ) {
+        setViewingApplication(null);
+        setResumeDetailsApplication(application);
+        if (action === 'edit') setEditingApplication(application);
+        if (action === 'archive') setChangingArchiveApplication(application);
+        if (action === 'delete') setDeletingApplication(application);
+    }
+
+    async function handleBoardStatusChange(
+        application: Application,
+        status: ApplicationStatus,
+    ) {
+        if (application.status === status) return;
+        const optimisticApplication = { ...application, status };
+        setApplications((currentApplications) => currentApplications.map((item) =>
+            item.id === application.id ? optimisticApplication : item
+        ));
+        try {
+            const updatedApplication = await updateApplication(application.id, { status });
+            setApplications((currentApplications) => currentApplications.map((item) =>
+                item.id === application.id ? updatedApplication : item
+            ));
+            setOperationMessage(
+                `${updatedApplication.job_title} moved to ${APPLICATION_STATUS_LABELS[status]}.`,
+            );
+        } catch (error) {
+            setApplications((currentApplications) => currentApplications.map((item) =>
+                item.id === application.id ? application : item
+            ));
+            throw error;
+        }
     }
 
     return (
@@ -209,11 +331,57 @@ function ApplicationTracker() {
             <div className="application-tracker-heading">
                 <div>
                     <h1>Keep your next move in sight.</h1>
-                    <p>Track every demo opportunity from saved job to offer.</p>
+                    <p>Track every opportunity from saved job to offer.</p>
                 </div>
-                <span className="application-tracker-demo-badge">
-                    Demo · Database data
-                </span>
+                <div className="application-tracker-heading__actions">
+                    <div className="application-view-toggle" role="group" aria-label="Application view">
+                        <button
+                            type="button"
+                            className={view === 'kanban' ? 'application-view-toggle__active' : undefined}
+                            aria-pressed={view === 'kanban'}
+                            onClick={() => setView('kanban')}
+                        >
+                            Kanban
+                        </button>
+                        <button
+                            type="button"
+                            className={view === 'list' ? 'application-view-toggle__active' : undefined}
+                            aria-pressed={view === 'list'}
+                            onClick={() => setView('list')}
+                        >
+                            List
+                        </button>
+                    </div>
+                    <span className="application-tracker-demo-badge">
+                        Demo · Database data
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setOperationMessage(null);
+                            setCreatingApplication(true);
+                        }}
+                    >
+                        Add application
+                    </button>
+                    <label className="application-archive-filter">
+                        <span>Archive view</span>
+                        <select
+                            aria-label="Filter by archive state"
+                            value={archiveFilter}
+                            onChange={(event) => {
+                                setArchiveFilter(
+                                    event.target.value as 'active' | 'archived' | 'all',
+                                );
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <option value="active">Active</option>
+                            <option value="archived">Archived</option>
+                            <option value="all">All</option>
+                        </select>
+                    </label>
+                </div>
             </div>
 
             {loading && (
@@ -248,8 +416,7 @@ function ApplicationTracker() {
                     <span className="application-tracker-state__badge">No records</span>
                     <h2>No applications are being tracked yet.</h2>
                     <p>
-                        Fictional application records added to SquareOne will appear
-                        here.
+                        Applications you add or save from SquareOne will appear here.
                     </p>
                 </div>
             )}
@@ -260,9 +427,9 @@ function ApplicationTracker() {
                         className="application-overview"
                         aria-label="Application overview"
                     >
-                        {OVERVIEW_STATUSES.map(({ status, label }) => (
-                            <article className="application-overview__card" key={status}>
-                                <strong>{statusCounts[status]}</strong>
+                        {OVERVIEW_STATUSES.map(({ value, label }) => (
+                            <article className="application-overview__card" key={value}>
+                                <strong>{statusCounts[value]}</strong>
                                 <span>{label}</span>
                             </article>
                         ))}
@@ -270,11 +437,11 @@ function ApplicationTracker() {
 
                     <div className="application-tracker-toolbar">
                         <div className="application-tracker-toolbar__summary">
-                            <h2>All opportunities ({applications.length})</h2>
+                            <h2>{view === 'kanban' ? 'Command center' : 'All opportunities'} ({applications.length})</h2>
                             {hasActiveFilters && (
                                 <span>
-                                    {filteredApplications.length}{' '}
-                                    {filteredApplications.length === 1
+                                    {(view === 'kanban' ? searchFilteredApplications : filteredApplications).length}{' '}
+                                    {(view === 'kanban' ? searchFilteredApplications : filteredApplications).length === 1
                                         ? 'match'
                                         : 'matches'}
                                 </span>
@@ -301,29 +468,31 @@ function ApplicationTracker() {
                             <button type="submit">Search</button>
                         </form>
 
-                        <label className="application-tracker-filter">
-                            <span className="application-tracker-sr-only">
-                                Filter by application status
-                            </span>
-                            <select
-                                value={statusFilter}
-                                onChange={(event) => {
-                                    setStatusFilter(
-                                        event.target.value as 'all' | ApplicationStatus,
-                                    );
-                                    setCurrentPage(1);
-                                }}
-                            >
-                                <option value="all">All statuses</option>
-                                {Object.entries(APPLICATION_STATUS_LABELS).map(
-                                    ([status, label]) => (
-                                        <option value={status} key={status}>
-                                            {label}
-                                        </option>
-                                    ),
-                                )}
-                            </select>
-                        </label>
+                        {view === 'list' && (
+                            <label className="application-tracker-filter">
+                                <span className="application-tracker-sr-only">
+                                    Filter by application status
+                                </span>
+                                <select
+                                    value={statusFilter}
+                                    onChange={(event) => {
+                                        setStatusFilter(
+                                            event.target.value as 'all' | ApplicationStatus,
+                                        );
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value="all">All statuses</option>
+                                    {APPLICATION_STATUSES.map(
+                                        ({ value, label }) => (
+                                            <option value={value} key={value}>
+                                                {label}
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+                            </label>
+                        )}
 
                         {hasActiveFilters && (
                             <button
@@ -335,16 +504,9 @@ function ApplicationTracker() {
                             </button>
                         )}
 
-                        <div
-                            className="application-tracker-planned-action"
-                            aria-label="Add application controls are planned"
-                        >
-                            <span>Planned</span>
-                            Add application
-                        </div>
                     </div>
 
-                    {filteredApplications.length === 0 ? (
+                    {(view === 'kanban' ? searchFilteredApplications : filteredApplications).length === 0 ? (
                         <div className="application-tracker-state">
                             <span className="application-tracker-state__badge">
                                 No matches
@@ -355,6 +517,15 @@ function ApplicationTracker() {
                                 Clear filters
                             </button>
                         </div>
+                    ) : view === 'kanban' ? (
+                        <ApplicationKanbanBoard
+                            applications={searchFilteredApplications}
+                            onOpenApplication={(application) => {
+                                setOperationMessage(null);
+                                setViewingApplication(application);
+                            }}
+                            onStatusChange={handleBoardStatusChange}
+                        />
                     ) : (
                         <>
                             <div className="application-table-wrap">
@@ -374,7 +545,10 @@ function ApplicationTracker() {
                                     </thead>
                                     <tbody>
                                         {visibleApplications.map((application) => (
-                                            <tr key={application.id}>
+                                            <tr
+                                                className={application.archived_at ? 'application-table__row--archived' : undefined}
+                                                key={application.id}
+                                            >
                                                 <td data-label="Role / Company">
                                                     <strong>
                                                         {application.job_title ||
@@ -384,6 +558,11 @@ function ApplicationTracker() {
                                                         {application.company ||
                                                             'Company unavailable'}
                                                     </span>
+                                                    {application.archived_at && (
+                                                        <span className="application-archived-badge">
+                                                            Archived
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td data-label="Status">
                                                     <ApplicationStatusBadge
@@ -405,6 +584,10 @@ function ApplicationTracker() {
                                                             <Link to={`/jobs/${application.job}`}>
                                                                 View job
                                                             </Link>
+                                                        ) : application.source === 'manual' ? (
+                                                            <span className="application-table__unavailable">
+                                                                Manual entry
+                                                            </span>
                                                         ) : (
                                                             <span className="application-table__unavailable">
                                                                 Job unavailable
@@ -414,20 +597,10 @@ function ApplicationTracker() {
                                                             type="button"
                                                             onClick={() => {
                                                                 setOperationMessage(null);
-                                                                setEditingApplication(application);
+                                                                setViewingApplication(application);
                                                             }}
                                                         >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            className="application-table__remove"
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setOperationMessage(null);
-                                                                setDeletingApplication(application);
-                                                            }}
-                                                        >
-                                                            Remove
+                                                            View details
                                                         </button>
                                                     </div>
                                                 </td>
@@ -493,28 +666,52 @@ function ApplicationTracker() {
                         </>
                     )}
 
-                    <aside className="application-tracker-planned-note">
-                        <strong>Planned</strong>
-                        <span>
-                            Reminders and next-step deadlines require future
-                            application data and are not active in this demo.
-                        </span>
-                    </aside>
                 </>
             )}
 
             {editingApplication && (
                 <ApplicationEditDialog
                     application={editingApplication}
-                    onClose={() => setEditingApplication(null)}
+                    onClose={() => {
+                        setEditingApplication(null);
+                        resumeDetailsAfterCancel();
+                    }}
                     onMissing={handleApplicationMissing}
                     onUpdated={handleApplicationUpdated}
+                />
+            )}
+            {creatingApplication && (
+                <ApplicationCreateDialog
+                    onClose={() => setCreatingApplication(false)}
+                    onCreated={handleApplicationCreated}
+                />
+            )}
+            {viewingApplication && (
+                <ApplicationDetailsDialog
+                    application={viewingApplication}
+                    onClose={() => setViewingApplication(null)}
+                    onEdit={(application) => openManagementFromDetails(application, 'edit')}
+                    onArchiveChange={(application) => openManagementFromDetails(application, 'archive')}
+                    onDelete={(application) => openManagementFromDetails(application, 'delete')}
+                />
+            )}
+            {changingArchiveApplication && (
+                <ApplicationArchiveDialog
+                    application={changingArchiveApplication}
+                    onClose={() => {
+                        setChangingArchiveApplication(null);
+                        resumeDetailsAfterCancel();
+                    }}
+                    onUpdated={handleArchiveUpdated}
                 />
             )}
             {deletingApplication && (
                 <ApplicationDeleteDialog
                     application={deletingApplication}
-                    onClose={() => setDeletingApplication(null)}
+                    onClose={() => {
+                        setDeletingApplication(null);
+                        resumeDetailsAfterCancel();
+                    }}
                     onDeleted={handleApplicationDeleted}
                 />
             )}

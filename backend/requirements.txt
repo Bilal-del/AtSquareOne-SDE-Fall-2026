@@ -5,3 +5,4 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.0
 django-cors-headers==4.3.1
 drf-yasg==1.21.7
+boto3>=1.35,<2.0

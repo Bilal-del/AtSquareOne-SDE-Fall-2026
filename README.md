@@ -1,273 +1,126 @@
-# Developer Guide
+# SquareOne Job Search and Application Tracker
 
-## Quick Overview
+SquareOne is a full-stack job discovery and application-management platform. It combines public job search with a private, per-user application command center, reusable document storage, reminders, and a staff-only job administration dashboard.
 
-Full-stack job search application with React, Django REST, PostgreSQL, all containerized with Docker.
+## Technology
 
-**Tech Stack:**
-- Frontend: React 18 + TypeScript + Vite
-- Backend: Django 5.0 + Django REST Framework
-- Database: PostgreSQL 15
-- DevOps: Docker + Docker Compose
+- React 19, TypeScript, Vite, Vitest, and React Testing Library
+- Django, Django REST Framework, and Simple JWT
+- PostgreSQL 15
+- Docker Compose
+- Private Amazon S3 document storage with short-lived presigned URLs
 
----
+## Features
 
-## Prerequisites (One-Time Install)
+- Public job search, filtering, pagination, and job details
+- Registration, login, refresh-token session restoration, and logout
+- Per-user application tracking with duplicate detection
+- Kanban and list views across eight application statuses
+- Manual applications, editing, activity history, and follow-up reminders
+- Private document upload, preview, download, reuse, attachment, and detachment
+- Staff-only job statistics, search, filtering, creation, editing, archiving, and restoration
+- Reversible job soft deletion that preserves applications and historical snapshots
 
-1. **Docker Desktop**: https://www.docker.com/products/docker-desktop/
-2. **Git**: https://git-scm.com/
-3. **VS Code** (recommended): https://code.visualstudio.com/
+## Architecture and access model
 
-**You DON'T need:** Python, Node.js, PostgreSQL, or any packages. Docker handles everything.
+The browser keeps the short-lived JWT access token in memory. The refresh token is stored in an HttpOnly cookie scoped to `/api/auth/`; refresh-token rotation and blacklisting are enabled. State-changing authentication endpoints require Django's CSRF token.
 
----
-### First-Time Setup (5 minutes)
+Application, reminder, activity, attachment, and document queries are scoped to the authenticated owner. Administration uses Django's existing `is_staff` flag and is enforced by backend permissions as well as the frontend route guard. Public registration and profile updates cannot assign staff privileges.
+
+Uploaded objects remain private in S3. The API validates ownership, extension, content type, and size, and returns short-lived presigned access URLs rather than public object URLs. See the [AWS document storage guide](docs/AWS_DOCUMENT_STORAGE.md).
+
+## Local setup
+
+Prerequisites are Docker with Compose and Git. Host installations of Python, Node.js, and PostgreSQL are not required.
 
 ```bash
-# 1. Clone the repository
 git clone <repository-url>
-cd everify-job-search
-
-# 2. Start Docker Desktop application
-# Wait until you see "Docker Desktop is running"
-
-# 3. Build containers (takes 2-3 minutes first time)
-docker compose build
-
-# 4. Start all services
-docker compose up -d
-
-# 5. Create database tables
-docker compose exec backend python manage.py migrate
-
-# 6. Create admin user
-docker compose exec backend python manage.py createsuperuser
-# Enter username, email (optional), and password
-
-# 7. Verify everything works
-# Open browser and visit:
-# - Frontend: http://localhost:5173
-# - Backend API: http://localhost:8000/swagger/
-# - Admin Panel: http://localhost:8000/admin/
-
-```
-
-**✅ You're ready to code!**
-
----
-
-## Daily Workflow
-
-```bash
-# Start working
-docker compose up -d
-
-# Code normally in VS Code
-# - Edit frontend/src/ → Browser auto-refreshes
-# - Edit backend/api/ → Django auto-reloads
-
-# View logs (if needed)
-docker compose logs -f
-
-# Stop working
-docker compose down
-```
-
----
-
-## Project Structure
-
-```
-everify-job-search/
-├── docker-compose.yml
-├── frontend/               # React + TypeScript
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── api/client.ts  # Axios + JWT
-│   │   └── components/
-│   └── Dockerfile
-└── backend/               # Django REST
-    ├── api/
-    │   ├── models.py      # Database models
-    │   ├── views.py       # API endpoints
-    │   ├── serializers.py # Data formatting
-    │   └── urls.py        # API routes
-    ├── config/
-    │   ├── settings.py    # Django config
-    │   └── urls.py        # Main routing
-    └── Dockerfile
-```
-
----
-
-## Common Tasks
-
-### Add New Database Model
-
-```python
-# 1. Edit backend/api/models.py
-class Job(models.Model):
-    title = models.CharField(max_length=200)
-    company = models.CharField(max_length=200)
-
-# 2. Create and apply migration
-docker compose exec backend python manage.py makemigrations
-docker compose exec backend python manage.py migrate
-```
-
-### Add New API Endpoint
-
-```python
-# 1. Create serializer (backend/api/serializers.py)
-class JobSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Job
-        fields = '__all__'
-
-# 2. Create view (backend/api/views.py)
-class JobViewSet(viewsets.ModelViewSet):
-    queryset = Job.objects.all()
-    serializer_class = JobSerializer
-
-# 3. Add route (backend/api/urls.py)
-router.register(r'jobs', JobViewSet)
-
-# 4. Test at http://localhost:8000/swagger/
-```
-
-### Add New React Component
-
-```typescript
-// frontend/src/components/JobList.tsx
-import { useEffect, useState } from 'react';
-import apiClient from '../api/client';
-
-function JobList() {
-  const [jobs, setJobs] = useState([]);
-  
-  useEffect(() => {
-    apiClient.get('/jobs/').then(res => setJobs(res.data));
-  }, []);
-  
-  return (
-    <div>
-      {jobs.map(job => <div key={job.id}>{job.title}</div>)}
-    </div>
-  );
-}
-```
-
-### Add Dependencies
-
-```bash
-# Python package
-# 1. Add to backend/requirements.txt
-# 2. Rebuild
-docker compose build backend
-docker compose up -d
-
-# npm package
-docker compose exec frontend npm install <package>
-docker compose build frontend
-docker compose up -d
-```
-
----
-
-## Docker Commands
-
-```bash
-# Start/stop
-docker compose up -d              # Start all
-docker compose down               # Stop all
-docker compose restart backend    # Restart one service
-
-# Logs
-docker compose logs -f            # All logs
-docker compose logs -f backend    # Backend only
-
-# Database
-docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py makemigrations
-docker compose exec backend python manage.py shell
-
-# Build
-docker compose build              # Rebuild all
-docker compose build backend      # Rebuild one
-```
-
----
-
-## Troubleshooting
-
-### Changes not showing?
-```bash
-docker compose restart backend  # or frontend
-```
-
-### Port already in use?
-```bash
-docker compose down
-# Or change ports in docker-compose.yml
-```
-
-### Complete reset (⚠️ deletes all data)
-```bash
-docker compose down -v
+cd AtSquareOne-SDE-Fall-2026
+cp .env.example .env
 docker compose build
 docker compose up -d
-docker compose exec backend python manage.py migrate
+docker compose exec -T backend python manage.py migrate
+```
+
+Create a local administrator only when needed:
+
+```bash
 docker compose exec backend python manage.py createsuperuser
 ```
 
----
+Services:
 
-## API Endpoints
+- Frontend: `http://localhost:5173`
+- API health check: `http://localhost:8000/api/health/`
+- Django administration: `http://localhost:8000/admin/`
+- OpenAPI/Swagger UI: `http://localhost:8000/swagger/`
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health/` | GET | Health check |
-| `/api/token/` | POST | Get JWT token |
-| `/api/token/refresh/` | POST | Refresh token |
-| `/swagger/` | GET | API docs |
-| `/admin/` | GET | Admin panel |
+The SquareOne staff dashboard is available at `http://localhost:5173/admin/jobs` to authenticated users whose Django account has `is_staff=True`. Staff access must be assigned through a trusted Django administrative workflow, never public registration.
 
-Test all endpoints at: http://localhost:8000/swagger/
+## Environment configuration
 
----
+The checked-in `.env.example` contains names and placeholders only. Never commit `.env`, AWS keys, database credentials, JWTs, or presigned URLs.
 
-## Access URLs
+Document storage variables:
 
-- **Frontend**: http://localhost:5173
-- **API Docs**: http://localhost:8000/swagger/
-- **Admin Panel**: http://localhost:8000/admin/
-- **Database**: localhost:5432 (use pgAdmin/DBeaver)
+```text
+AWS_REGION
+AWS_DOCUMENT_BUCKET
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_SESSION_TOKEN
+```
 
----
+Prefer an IAM role or another standard AWS credential provider over long-lived local keys. Backend deployment configuration also includes `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `FRONTEND_ORIGINS`, and `AUTH_COOKIE_SECURE`. Production must use a unique secret, `DEBUG=False`, explicit HTTPS origins/hosts, and secure cookies.
 
-## FAQ
+## Database migrations
 
-**Q: Need to install Python/Node?**  
-A: No! Docker has everything.
+```bash
+docker compose exec -T backend python manage.py migrate
+docker compose exec -T backend python manage.py makemigrations api --check --dry-run
+```
 
-**Q: Can I use my editor normally?**  
-A: Yes! Edit files, changes sync automatically.
+Do not generate a migration merely because local services are out of sync. Review model changes first and keep migrations in source control.
 
-**Q: What if my teammate uses Windows?**  
-A: Docker ensures identical environments.
+## Verification
 
-**Q: How to access database?**  
-A: Use pgAdmin/DBeaver: `localhost:5432`, user/db: `jobtracker`, password: `jobtracker_password`
+Backend tests and migration consistency:
 
----
+```bash
+docker compose exec -T backend python manage.py test api
+docker compose exec -T backend python manage.py makemigrations api --check --dry-run
+```
 
-## Resources
+Frontend tests, lint, and production build:
 
-- Django: https://docs.djangoproject.com/
-- Django REST: https://www.django-rest-framework.org/
-- React: https://react.dev/
-- Docker: https://docs.docker.com/
+```bash
+docker compose exec -T frontend npx vitest run --maxWorkers=1 --no-file-parallelism --testTimeout=15000
+docker compose exec -T frontend npm run lint
+docker compose exec -T frontend npm run build
+```
 
----
+Repository checks:
 
-**Happy Coding! 🚀**
+```bash
+git diff --check
+git status -sb
+```
+
+## Development operations
+
+```bash
+docker compose up -d
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose down
+```
+
+Avoid `docker compose down -v` unless intentionally destroying the local PostgreSQL volume and all local data.
+
+## Development and deployment limitations
+
+The Compose configuration is a development environment: it uses Django's development server, Vite's development server, a sample database password, and `DEBUG=True`. It is not a production deployment template. A production release still needs a hardened reverse proxy/application server, managed secrets, TLS, backups, logging/monitoring, production CORS/host settings, and least-privilege IAM.
+
+Private S3 integration requires owner-provided AWS configuration and should be verified in the intended AWS account without exposing private documents or credentials. Future opportunities include employer accounts, AI-assisted job aggregation, and production deployment automation; they are intentionally outside the current project scope.
+
+See [Final QA and handoff](docs/FINAL_QA_HANDOFF.md) for the latest verification record and remaining owner checks.

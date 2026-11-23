@@ -11,6 +11,7 @@ import {
 export interface AuthUser {
   id: number
   username: string
+  is_staff: boolean
 }
 
 interface LoginResponse {
@@ -78,6 +79,12 @@ export function getApiErrorMessage(
   const detail = data?.detail
   if (Array.isArray(detail)) return detail.join(' ')
   if (typeof detail === 'string') return detail
+  const fieldMessages = Object.entries(data ?? {})
+    .flatMap(([field, value]) => {
+      const messages = Array.isArray(value) ? value : value ? [value] : []
+      return messages.map((message) => `${field.replaceAll('_', ' ')}: ${message}`)
+    })
+  if (fieldMessages.length) return fieldMessages.join(' ')
   return fallback
 }
 

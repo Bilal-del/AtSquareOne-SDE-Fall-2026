@@ -1,0 +1,37 @@
+.document-library { padding: 48px 0 72px !important; }
+.document-library__hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:34px; border-radius:20px; background:linear-gradient(135deg,#eaf4ef,#fff); border:1px solid var(--color-border); }
+.document-library__hero h1 { margin:4px 0 8px; font-size:36px; }
+.document-library__hero p,.document-card p { margin:0; color:var(--color-text-secondary); }
+.document-library__eyebrow { color:var(--color-primary); font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.document-library__tools { display:flex; gap:12px; margin:24px 0; }
+.document-library__tools label:first-child { flex:1; }
+.document-library__tools input,.document-library__tools select,.document-modal input,.document-modal select { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--color-border); border-radius:9px; background:#fff; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.document-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding:0; list-style:none; }
+.document-card { display:flex; gap:18px; padding:22px; border:1px solid var(--color-border); border-radius:15px; background:#fff; }
+.document-card__icon { display:flex; flex:0 0 58px; height:70px; align-items:center; justify-content:center; border-radius:10px; background:#eaf4ef; color:var(--color-primary); font-size:11px; font-weight:800; }
+.document-card__icon--pdf { background:#fff0ed; color:#a53a2a; }
+.document-card__body { min-width:0; flex:1; }
+.document-card__heading { display:flex; justify-content:space-between; gap:8px; }
+.document-card h2 { margin:0 0 4px; overflow-wrap:anywhere; font-size:17px; }
+.document-card__heading span,.document-card p { font-size:12px; }
+.document-card p { margin-top:9px; }
+.document-card__actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.document-card__actions button { padding:7px 10px; font-size:12px; }
+.document-card__actions .document-card__delete,.document-modal .danger { background:#fff; border-color:#c94a3d; color:#a53026; }
+.document-library__state { padding:52px 20px; text-align:center; border:1px dashed var(--color-border); border-radius:14px; background:#fff; }
+.document-library__error { padding:12px; border-radius:8px; background:#fff0ed; color:#8d2c22; }
+.document-modal { width:min(92vw,520px); padding:0; border:0; border-radius:16px; box-shadow:0 24px 70px rgba(20,46,43,.24); }
+.document-modal::backdrop { background:rgba(20,46,43,.45); }
+.document-modal form,.document-modal>div,.document-modal>p { margin:0; }
+.document-modal form,.document-modal { padding:24px; }
+.document-modal label { display:grid; gap:7px; margin-top:16px; color:var(--color-text-secondary); font-size:13px; font-weight:700; }
+.document-modal__heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.document-modal__heading h2 { margin:0; }
+.document-modal__heading span { color:var(--color-primary); font-size:11px; font-weight:800; text-transform:uppercase; }
+.document-modal__heading>button { padding:4px 10px; background:transparent; color:var(--color-text); font-size:24px; }
+.document-modal__actions { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
+.document-modal .secondary { background:#fff; border-color:var(--color-border); color:var(--color-text); }
+.document-modal .document-library__error { margin-top:16px; }
+@media (max-width:800px) { .document-library { padding-top:24px !important; } .document-library__hero { align-items:stretch; flex-direction:column; padding:24px; } .document-library__hero h1 { font-size:28px; } .document-library__tools { flex-direction:column; } .document-grid { grid-template-columns:1fr; } }
+@media (max-width:480px) { .document-card { align-items:flex-start; flex-direction:column; } .document-card__body { width:100%; } .document-card__heading { align-items:flex-start; } .document-card__actions button { flex:1; } }

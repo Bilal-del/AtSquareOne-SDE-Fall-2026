@@ -4,6 +4,34 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 
+class JobSoftDeletionMigrationTests(TransactionTestCase):
+    migrate_from = [('api', '0009_document_library')]
+    migrate_to = [('api', '0010_job_soft_deletion')]
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+        Job = old_apps.get_model('api', 'Job')
+        self.job_id = Job.objects.create(
+            title='Existing Job', company='Existing Company', location='Remote',
+            description='Must remain active.',
+        ).pk
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_to)
+        self.apps = executor.loader.project_state(self.migrate_to).apps
+
+    def test_existing_jobs_remain_active(self):
+        job = self.apps.get_model('api', 'Job').objects.get(pk=self.job_id)
+        self.assertIsNone(job.deleted_at)
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+
 class ApplicationOwnershipMigrationTests(TransactionTestCase):
     migrate_from = [('api', '0002_application')]
     migrate_to = [('api', '0005_application_owner_required')]

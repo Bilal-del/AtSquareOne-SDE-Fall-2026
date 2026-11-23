@@ -128,6 +128,9 @@ function SquareOneNavigation() {
           {status === 'authenticated' && <NavLink className={getNavLinkClass} to="/documents" onClick={() => setAccountOpen(false)}>
             Documents
           </NavLink>}
+          {user?.is_staff && <NavLink className={getNavLinkClass} to="/admin/jobs" onClick={() => setAccountOpen(false)}>
+            Admin
+          </NavLink>}
         </nav>
 
         {status === 'authenticated' && user ? (

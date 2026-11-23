@@ -55,14 +55,16 @@ class AuthenticationAPITests(APITestCase):
                 'username': 'new_user',
                 'password': 'AnotherStrongPassword!3579',
                 'password_confirm': 'AnotherStrongPassword!3579',
+                'is_staff': True,
             },
             format='json',
             **self.csrf_headers(),
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(set(response.data), {'id', 'username'})
+        self.assertEqual(set(response.data), {'id', 'username', 'is_staff'})
         self.assertEqual(response.data['username'], 'new_user')
+        self.assertFalse(response.data['is_staff'])
         self.assertNotIn(settings.AUTH_REFRESH_COOKIE_NAME, response.cookies)
         user = User.objects.get(username='new_user')
         self.assertTrue(user.is_active)
@@ -122,6 +124,7 @@ class AuthenticationAPITests(APITestCase):
         self.assertEqual(response.data['user'], {
             'id': self.user.id,
             'username': self.user.username,
+            'is_staff': False,
         })
         access = AccessToken(response.data['access'])
         self.assertEqual(access['user_id'], self.user.id)
@@ -262,6 +265,7 @@ class AuthenticationAPITests(APITestCase):
         self.assertEqual(authenticated_response.data, {
             'id': self.user.id,
             'username': self.user.username,
+            'is_staff': False,
         })
 
     def test_all_cookie_authentication_posts_reject_missing_csrf(self):

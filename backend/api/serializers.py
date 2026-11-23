@@ -21,6 +21,21 @@ class JobSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
+class AdminJobSerializer(JobSerializer):
+    status = serializers.SerializerMethodField()
+
+    class Meta(JobSerializer.Meta):
+        fields = [*JobSerializer.Meta.fields, 'deleted_at', 'status']
+        read_only_fields = [
+            *JobSerializer.Meta.read_only_fields,
+            'deleted_at',
+            'status',
+        ]
+
+    def get_status(self, job):
+        return 'archived' if job.deleted_at else 'active'
+
+
 class ApplicationSerializer(serializers.ModelSerializer):
     next_reminder = serializers.SerializerMethodField()
     job_title = serializers.CharField(
@@ -72,6 +87,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
         if self.instance is None:
             job = attrs.get('job')
             if job is not None:
+                if job.deleted_at is not None:
+                    errors['job'] = 'Archived jobs cannot be saved to the tracker.'
                 if 'job_title' in attrs:
                     errors['job_title'] = (
                         'Job title is set by the linked SquareOne job.'

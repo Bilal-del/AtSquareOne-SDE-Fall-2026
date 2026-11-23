@@ -8,6 +8,15 @@ class Job(models.Model):
     location = models.CharField(max_length=200)
     description = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=['deleted_at', '-created_at'],
+                name='api_job_archive_created_idx',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.title} at {self.company}"

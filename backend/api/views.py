@@ -2,7 +2,7 @@ import os
 import re
 import uuid
 
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -11,7 +11,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -32,6 +32,7 @@ from .models import (
 )
 from .permissions import IsStaffOrReadOnly
 from .serializers import (
+    AdminJobSerializer,
     ApplicationDuplicateSerializer,
     ApplicationActivitySerializer,
     ApplicationReminderSerializer,
@@ -49,8 +50,73 @@ def normalize_duplicate_value(value):
 
 class JobViewSet(viewsets.ModelViewSet):
     permission_classes = [IsStaffOrReadOnly]
-    queryset = Job.objects.all().order_by('-created_at')
+    queryset = Job.objects.filter(deleted_at__isnull=True).order_by('-created_at')
     serializer_class = JobSerializer
+
+    def perform_destroy(self, instance):
+        if instance.deleted_at is None:
+            instance.deleted_at = timezone.now()
+            instance.save(update_fields=['deleted_at'])
+
+
+class AdminJobViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminUser]
+    serializer_class = AdminJobSerializer
+
+    def get_queryset(self):
+        queryset = Job.objects.all().order_by('-created_at', '-id')
+        if getattr(self, 'action', None) != 'list':
+            return queryset
+
+        archive_state = self.request.query_params.get('archive_state', 'all')
+        if archive_state == 'active':
+            queryset = queryset.filter(deleted_at__isnull=True)
+        elif archive_state == 'archived':
+            queryset = queryset.filter(deleted_at__isnull=False)
+        elif archive_state != 'all':
+            raise ValidationError({
+                'archive_state': 'Use active, archived, or all.',
+            })
+
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(company__icontains=search)
+            )
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        response = self.get_paginated_response(serializer.data)
+        response.data['summary'] = Job.objects.aggregate(
+            active=models.Count('id', filter=Q(deleted_at__isnull=True)),
+            archived=models.Count('id', filter=Q(deleted_at__isnull=False)),
+            total=models.Count('id'),
+        )
+        return response
+
+    def perform_destroy(self, instance):
+        if instance.deleted_at is None:
+            instance.deleted_at = timezone.now()
+            instance.save(update_fields=['deleted_at'])
+
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        job = self.get_object()
+        if job.deleted_at is None:
+            job.deleted_at = timezone.now()
+            job.save(update_fields=['deleted_at'])
+        return Response(self.get_serializer(job).data)
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        job = self.get_object()
+        if job.deleted_at is not None:
+            job.deleted_at = None
+            job.save(update_fields=['deleted_at'])
+        return Response(self.get_serializer(job).data)
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):

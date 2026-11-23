@@ -101,7 +101,8 @@ class JobAPITests(APITestCase):
 
         delete_response = self.client.delete(f'/api/jobs/{job_id}/')
         self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Job.objects.filter(pk=job_id).exists())
+        archived_job = Job.objects.get(pk=job_id)
+        self.assertIsNotNone(archived_job.deleted_at)
 
 
 class ApplicationAPITests(APITestCase):

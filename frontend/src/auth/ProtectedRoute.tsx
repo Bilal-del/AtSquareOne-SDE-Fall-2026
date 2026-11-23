@@ -17,6 +17,20 @@ export function ProtectedRoute() {
   return <Outlet />
 }
 
+export function StaffRoute() {
+  const { status, user } = useAuth()
+  const location = useLocation()
+
+  if (status === 'initializing') {
+    return <div className="route-loading" role="status">Restoring your session…</div>
+  }
+  if (status === 'anonymous') {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+  if (!user?.is_staff) return <Navigate to="/jobs" replace />
+  return <Outlet />
+}
+
 export function PublicOnlyRoute() {
   const { status } = useAuth()
 

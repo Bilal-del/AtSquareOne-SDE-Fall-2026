@@ -343,7 +343,10 @@
   .site-nav {
     order: 3;
     width: 100%;
+    min-width: 0;
     gap: 24px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
 
   .site-account__username {

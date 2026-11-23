@@ -32,5 +32,6 @@
 .document-modal__heading>button { padding:4px 10px; background:transparent; color:var(--color-text); font-size:24px; }
 .document-modal__actions { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
 .document-modal .secondary { background:#fff; border-color:var(--color-border); color:var(--color-text); }
+.document-modal .document-library__error { margin-top:16px; }
 @media (max-width:800px) { .document-library { padding-top:24px !important; } .document-library__hero { align-items:stretch; flex-direction:column; padding:24px; } .document-library__hero h1 { font-size:28px; } .document-library__tools { flex-direction:column; } .document-grid { grid-template-columns:1fr; } }
 @media (max-width:480px) { .document-card { align-items:flex-start; flex-direction:column; } .document-card__body { width:100%; } .document-card__heading { align-items:flex-start; } .document-card__actions button { flex:1; } }

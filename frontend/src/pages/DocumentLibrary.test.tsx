@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DocumentLibrary from './DocumentLibrary';
@@ -48,8 +48,17 @@ describe('DocumentLibrary', () => {
     const user = userEvent.setup(); render(<DocumentLibrary />);
     await user.click(screen.getByRole('button', { name: '+ Upload document' }));
     await user.click(screen.getByRole('button', { name: 'Upload document' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Choose a document to upload.');
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Choose a document to upload.');
     expect(apiMocks.uploadDocument).not.toHaveBeenCalled();
+  });
+
+  it('uses a modal dialog and dismisses it on cancel', async () => {
+    const user = userEvent.setup(); render(<DocumentLibrary />);
+    await user.click(screen.getByRole('button', { name: '+ Upload document' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('open');
+    fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('clears a missing-file error and submits a selected PDF', async () => {

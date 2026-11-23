@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ApplicationTracker from './pages/ApplicationTracker';
 import JobDetails from './pages/JobDetails';
 import JobSearch from './pages/JobSearch';
+import DocumentLibrary from './pages/DocumentLibrary';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import HealthCheck from './components/HealthCheck';
@@ -28,6 +29,7 @@ function App() {
               </Route>
               <Route element={<ProtectedRoute />}>
                 <Route path="/applications" element={<ApplicationTracker />} />
+                <Route path="/documents" element={<DocumentLibrary />} />
               </Route>
               <Route path="*" element={<h2>Page Not Found</h2>} />
             </Routes>

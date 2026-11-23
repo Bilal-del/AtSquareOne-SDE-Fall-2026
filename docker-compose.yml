@@ -36,6 +36,11 @@ services:
       SECRET_KEY: your-secret-key-change-in-production
       DEBUG: "True"
       ALLOWED_HOSTS: localhost,127.0.0.1
+      AWS_REGION: ${AWS_REGION:-us-east-2}
+      AWS_DOCUMENT_BUCKET: ${AWS_DOCUMENT_BUCKET:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
     volumes:
       - ./backend:/app
     command: python manage.py runserver 0.0.0.0:8000

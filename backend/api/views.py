@@ -1,4 +1,6 @@
+import os
 import re
+import uuid
 
 from django.db import transaction
 from django.db.models import Prefetch, Q
@@ -8,17 +10,34 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Application, ApplicationActivity, ApplicationReminder, Job
+from .document_storage import (
+    DocumentStorageError,
+    create_download_url,
+    delete_document,
+    upload_document,
+)
+from .document_validation import sanitize_filename, validate_document_file
+from .models import (
+    Application,
+    ApplicationActivity,
+    ApplicationDocument,
+    ApplicationReminder,
+    Document,
+    Job,
+)
 from .permissions import IsStaffOrReadOnly
 from .serializers import (
     ApplicationDuplicateSerializer,
     ApplicationActivitySerializer,
     ApplicationReminderSerializer,
     ApplicationSerializer,
+    ApplicationDocumentAttachSerializer,
+    DocumentSerializer,
     JobSerializer,
 )
 
@@ -88,6 +107,53 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=['get', 'post'])
+    def documents(self, request, pk=None):
+        application = self.get_object()
+        if request.method == 'GET':
+            documents = Document.objects.filter(
+                application_links__application=application,
+                owner=request.user,
+            ).prefetch_related('application_links__application')
+            return Response(DocumentSerializer(documents, many=True).data)
+
+        input_serializer = ApplicationDocumentAttachSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        document = get_object_or_404(
+            Document,
+            pk=input_serializer.validated_data['document_id'],
+            owner=request.user,
+        )
+        link, created = ApplicationDocument.objects.get_or_create(
+            application=application,
+            document=document,
+        )
+        if not created:
+            return Response(
+                {'document_id': 'This document is already attached.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            DocumentSerializer(document).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True,
+        methods=['delete'],
+        url_path=r'documents/(?P<document_id>\d+)',
+    )
+    def document_detail(self, request, document_id=None, pk=None):
+        application = self.get_object()
+        link = get_object_or_404(
+            ApplicationDocument,
+            application=application,
+            document_id=document_id,
+            document__owner=request.user,
+        )
+        link.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['get'])
     def activity(self, request, pk=None):
@@ -281,3 +347,116 @@ class HealthCheckView(APIView):
             'status': 'healthy',
             'message': 'Django REST API is running!'
         }, status=status.HTTP_200_OK)
+
+
+class DocumentViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = DocumentSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Document.objects.none()
+        queryset = Document.objects.filter(
+            owner=self.request.user,
+        ).prefetch_related('application_links__application')
+        if getattr(self, 'action', None) != 'list':
+            return queryset
+        search = self.request.query_params.get('search', '').strip()
+        category = self.request.query_params.get('category', '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(display_name__icontains=search)
+                | Q(original_filename__icontains=search)
+            )
+        if category:
+            if category not in Document.Category.values:
+                raise ValidationError({'category': 'Select a valid category.'})
+            queryset = queryset.filter(category=category)
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        upload = request.FILES.get('file')
+        if upload is None:
+            raise ValidationError({'file': 'Choose a document to upload.'})
+        filename, content_type = validate_document_file(upload)
+        category = request.data.get('category', Document.Category.OTHER)
+        if category not in Document.Category.values:
+            raise ValidationError({'category': 'Select a valid category.'})
+        display_name = str(request.data.get('display_name', filename)).strip()
+        if not display_name:
+            raise ValidationError({'display_name': 'Display name cannot be blank.'})
+        display_name = sanitize_filename(display_name)
+        extension = os.path.splitext(filename)[1].lower()
+        object_key = f'users/{request.user.pk}/{uuid.uuid4().hex}{extension}'
+        try:
+            upload_document(upload, object_key, content_type)
+        except DocumentStorageError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        try:
+            document = Document.objects.create(
+                owner=request.user,
+                original_filename=filename,
+                display_name=display_name,
+                category=category,
+                s3_object_key=object_key,
+                file_size=upload.size,
+                content_type=content_type,
+            )
+        except Exception:
+            # Compensate for the S3 write when metadata persistence fails.
+            try:
+                delete_document(object_key)
+            except DocumentStorageError:
+                pass
+            raise
+        return Response(
+            self.get_serializer(document).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        document = self.get_object()
+        try:
+            delete_document(document.s3_object_key)
+        except DocumentStorageError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        document.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def access(self, request, pk=None):
+        document = self.get_object()
+        requested_disposition = request.data.get('disposition', 'attachment')
+        if requested_disposition not in {'inline', 'attachment'}:
+            raise ValidationError({'disposition': 'Use inline or attachment.'})
+        disposition = (
+            'inline'
+            if requested_disposition == 'inline'
+            and document.content_type == 'application/pdf'
+            else 'attachment'
+        )
+        try:
+            url = create_download_url(
+                document.s3_object_key,
+                sanitize_filename(document.original_filename),
+                document.content_type,
+                disposition,
+            )
+        except DocumentStorageError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({
+            'url': url,
+            'expires_in': 300,
+            'disposition': disposition,
+        })

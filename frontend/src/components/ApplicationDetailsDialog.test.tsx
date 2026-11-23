@@ -21,6 +21,16 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock('../api/applications', () => apiMocks)
 
+const documentApiMocks = vi.hoisted(() => ({
+  attachApplicationDocument: vi.fn(),
+  detachApplicationDocument: vi.fn(),
+  getApplicationDocuments: vi.fn(),
+  getDocuments: vi.fn(),
+  openDocument: vi.fn(),
+}))
+
+vi.mock('../api/documents', () => documentApiMocks)
+
 function renderDetails(
   application = makeApplication(),
   props: Partial<ComponentProps<typeof ApplicationDetailsDialog>> = {},
@@ -37,6 +47,9 @@ describe('ApplicationDetailsDialog', () => {
     Object.values(apiMocks).forEach((mock) => mock.mockReset())
     apiMocks.getApplicationActivity.mockResolvedValue([makeActivity()])
     apiMocks.getApplicationReminders.mockResolvedValue([])
+    Object.values(documentApiMocks).forEach((mock) => mock.mockReset())
+    documentApiMocks.getApplicationDocuments.mockResolvedValue([])
+    documentApiMocks.getDocuments.mockResolvedValue([])
   })
 
   it('creates a reminder and displays activity', async () => {
@@ -176,6 +189,37 @@ describe('ApplicationDetailsDialog', () => {
     expect(onEdit).toHaveBeenCalledWith(linked)
     expect(onArchiveChange).toHaveBeenCalledWith(linked)
     expect(onDelete).toHaveBeenCalledWith(linked)
+  })
+
+  it('attaches and detaches reusable library documents', async () => {
+    const user = userEvent.setup()
+    const document = {
+      id: 7,
+      original_filename: 'resume.pdf',
+      display_name: 'Primary Resume',
+      category: 'resume',
+      category_label: 'Resume',
+      file_extension: 'pdf',
+      file_size: 1024,
+      content_type: 'application/pdf',
+      uploaded_at: '2026-11-20T12:00:00Z',
+      linked_applications: [],
+    }
+    documentApiMocks.getDocuments.mockResolvedValue([document])
+    documentApiMocks.attachApplicationDocument.mockResolvedValue(document)
+    documentApiMocks.detachApplicationDocument.mockResolvedValue(undefined)
+    renderDetails()
+
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Document to attach' }), '7')
+    await user.click(screen.getByRole('button', { name: 'Attach' }))
+    expect(documentApiMocks.attachApplicationDocument).toHaveBeenCalledWith(1, 7)
+    expect(await screen.findByText('Primary Resume')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Detach' }))
+    expect(documentApiMocks.detachApplicationDocument).toHaveBeenCalledWith(1, 7)
+    await waitFor(() => {
+      expect(screen.queryByText('Primary Resume', { selector: 'strong' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('option', { name: 'Primary Resume' })).toBeEnabled()
   })
 
   it('keeps application information visible when follow-up data fails to load', async () => {

@@ -1,10 +1,12 @@
 from django.db import transaction
 from rest_framework import serializers
 
+from .document_validation import sanitize_filename
 from .models import (
     Application,
     ApplicationActivity,
     ApplicationReminder,
+    Document,
     Job,
 )
 
@@ -186,3 +188,44 @@ class ApplicationReminderSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class DocumentSerializer(serializers.ModelSerializer):
+    category_label = serializers.CharField(source='get_category_display', read_only=True)
+    file_extension = serializers.SerializerMethodField()
+    linked_applications = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Document
+        fields = [
+            'id', 'original_filename', 'display_name', 'category',
+            'category_label', 'file_extension', 'file_size', 'content_type',
+            'uploaded_at', 'linked_applications',
+        ]
+        read_only_fields = [
+            'id', 'original_filename', 'file_extension', 'file_size',
+            'content_type', 'uploaded_at', 'linked_applications',
+        ]
+
+    def get_file_extension(self, document):
+        return document.original_filename.rsplit('.', 1)[-1].lower()
+
+    def get_linked_applications(self, document):
+        return [
+            {
+                'id': link.application_id,
+                'job_title': link.application.job_title,
+                'company': link.application.company,
+                'attached_at': link.attached_at,
+            }
+            for link in document.application_links.all()
+        ]
+
+    def validate_display_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('Display name cannot be blank.')
+        return sanitize_filename(value.strip())
+
+
+class ApplicationDocumentAttachSerializer(serializers.Serializer):
+    document_id = serializers.IntegerField(min_value=1)

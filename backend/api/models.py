@@ -184,3 +184,86 @@ class ApplicationReminder(models.Model):
 
     def __str__(self):
         return f"{self.title} for application {self.application_id}"
+
+
+class Document(models.Model):
+    class Category(models.TextChoices):
+        RESUME = 'resume', 'Resume'
+        COVER_LETTER = 'cover_letter', 'Cover Letter'
+        CERTIFICATE = 'certificate', 'Certificate'
+        TRANSCRIPT = 'transcript', 'Transcript'
+        OTHER = 'other', 'Other'
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='documents',
+    )
+    original_filename = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255)
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.OTHER,
+    )
+    s3_object_key = models.CharField(max_length=512, unique=True)
+    file_size = models.PositiveBigIntegerField()
+    content_type = models.CharField(max_length=100)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    applications = models.ManyToManyField(
+        Application,
+        through='ApplicationDocument',
+        related_name='documents',
+    )
+
+    class Meta:
+        ordering = ['-uploaded_at', '-id']
+        indexes = [
+            models.Index(
+                fields=['owner', 'category', 'uploaded_at'],
+                name='api_doc_owner_cat_time_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return self.display_name
+
+
+class ApplicationDocument(models.Model):
+    application = models.ForeignKey(
+        Application,
+        on_delete=models.CASCADE,
+        related_name='document_links',
+    )
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name='application_links',
+    )
+    attached_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['application', 'document'],
+                name='api_unique_application_document',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['application', 'attached_at'],
+                name='api_app_doc_app_time_idx',
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if (
+            self.application_id
+            and self.document_id
+            and self.application.owner_id != self.document.owner_id
+        ):
+            raise ValidationError(
+                'The document and application must have the same owner.'
+            )

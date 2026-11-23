@@ -17,6 +17,14 @@ import {
   WORK_ARRANGEMENTS,
 } from '../constants/applicationFields';
 import { APPLICATION_STATUS_LABELS } from '../constants/applicationStatuses';
+import {
+  attachApplicationDocument,
+  detachApplicationDocument,
+  getApplicationDocuments,
+  getDocuments,
+  openDocument,
+  type LibraryDocument,
+} from '../api/documents';
 
 interface ApplicationDetailsDialogProps {
   application: Application;
@@ -101,6 +109,10 @@ function ApplicationDetailsDialog({
   const [dueTime, setDueTime] = useState('');
   const [note, setNote] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [attachedDocuments, setAttachedDocuments] = useState<LibraryDocument[]>([]);
+  const [libraryDocuments, setLibraryDocuments] = useState<LibraryDocument[]>([]);
+  const [selectedDocumentId, setSelectedDocumentId] = useState('');
+  const [documentBusy, setDocumentBusy] = useState(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -114,11 +126,15 @@ function ApplicationDetailsDialog({
     Promise.all([
       getApplicationReminders(application.id),
       getApplicationActivity(application.id),
+      getApplicationDocuments(application.id),
+      getDocuments(),
     ])
-      .then(([reminderData, activityData]) => {
+      .then(([reminderData, activityData, attachedData, libraryData]) => {
         if (active) {
           setReminders(sortReminders(reminderData));
           setActivities(activityData);
+          setAttachedDocuments(attachedData);
+          setLibraryDocuments(libraryData);
         }
       })
       .catch((error) => {
@@ -134,6 +150,35 @@ function ApplicationDetailsDialog({
       active = false;
     };
   }, [application.id, reloadKey]);
+
+  async function attachDocument() {
+    const documentId = Number(selectedDocumentId);
+    if (!documentId) return;
+    setDocumentBusy(true);
+    setOperationError(null);
+    try {
+      const attached = await attachApplicationDocument(application.id, documentId);
+      setAttachedDocuments((current) => [...current, attached]);
+      setSelectedDocumentId('');
+    } catch {
+      setOperationError('The document could not be attached.');
+    } finally {
+      setDocumentBusy(false);
+    }
+  }
+
+  async function detachDocument(document: LibraryDocument) {
+    setDocumentBusy(true);
+    setOperationError(null);
+    try {
+      await detachApplicationDocument(application.id, document.id);
+      setAttachedDocuments((current) => current.filter((item) => item.id !== document.id));
+    } catch {
+      setOperationError('The document could not be detached.');
+    } finally {
+      setDocumentBusy(false);
+    }
+  }
 
   function resetForm() {
     setEditingReminder(null);
@@ -382,6 +427,20 @@ function ApplicationDetailsDialog({
       )}
 
       {!loading && !loadError && (
+        <>
+        <section className="application-documents" aria-labelledby="application-documents-heading">
+          <div className="application-details-section-heading">
+            <div>
+              <h3 id="application-documents-heading">Documents</h3>
+              <span>Reusable files from your private library</span>
+            </div>
+            <Link to="/documents" onClick={onClose}>Open Document Library</Link>
+          </div>
+          {attachedDocuments.length === 0 ? <p className="application-details-empty">No documents attached.</p> : <ul className="application-document-list">
+            {attachedDocuments.map((document) => <li key={document.id}><div><strong>{document.display_name}</strong><span>{document.category_label} · {document.file_extension.toUpperCase()}</span></div><div><button type="button" onClick={() => void openDocument(document, document.file_extension === 'pdf' ? 'inline' : 'attachment')}>{document.file_extension === 'pdf' ? 'Open' : 'Download'}</button><button type="button" className="application-document-detach" disabled={documentBusy} onClick={() => void detachDocument(document)}>Detach</button></div></li>)}
+          </ul>}
+          {libraryDocuments.length === 0 ? <p className="application-details-empty">Upload a document to your library before attaching one.</p> : <div className="application-document-selector"><label><span>Attach from library</span><select aria-label="Document to attach" value={selectedDocumentId} onChange={(event) => setSelectedDocumentId(event.target.value)}><option value="">Select a document</option>{libraryDocuments.map((document) => { const attached = attachedDocuments.some((item) => item.id === document.id); return <option key={document.id} value={document.id} disabled={attached}>{document.display_name}{attached ? ' (attached)' : ''}</option>; })}</select></label><button type="button" disabled={!selectedDocumentId || documentBusy} onClick={() => void attachDocument()}>{documentBusy ? 'Updating…' : 'Attach'}</button></div>}
+        </section>
         <div className="application-details-layout">
           <section aria-labelledby="reminders-heading">
             <div className="application-details-section-heading">
@@ -510,6 +569,7 @@ function ApplicationDetailsDialog({
             )}
           </section>
         </div>
+        </>
       )}
     </dialog>
   );

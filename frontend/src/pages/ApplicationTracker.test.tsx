@@ -23,6 +23,16 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock('../api/applications', () => apiMocks)
 
+const documentApiMocks = vi.hoisted(() => ({
+  attachApplicationDocument: vi.fn(),
+  detachApplicationDocument: vi.fn(),
+  getApplicationDocuments: vi.fn(),
+  getDocuments: vi.fn(),
+  openDocument: vi.fn(),
+}))
+
+vi.mock('../api/documents', () => documentApiMocks)
+
 function renderTracker() {
   render(
     <MemoryRouter>
@@ -46,6 +56,9 @@ describe('ApplicationTracker list regression coverage', () => {
     apiMocks.findApplicationDuplicates.mockResolvedValue([])
     apiMocks.getApplicationActivity.mockResolvedValue([])
     apiMocks.getApplicationReminders.mockResolvedValue([])
+    Object.values(documentApiMocks).forEach((mock) => mock.mockReset())
+    documentApiMocks.getApplicationDocuments.mockResolvedValue([])
+    documentApiMocks.getDocuments.mockResolvedValue([])
   })
 
   it('renders a loading state until applications arrive', async () => {
@@ -243,6 +256,9 @@ describe('ApplicationTracker view preferences', () => {
     apiMocks.getAllApplications.mockResolvedValue([makeApplication()])
     apiMocks.getApplicationActivity.mockResolvedValue([])
     apiMocks.getApplicationReminders.mockResolvedValue([])
+    Object.values(documentApiMocks).forEach((mock) => mock.mockReset())
+    documentApiMocks.getApplicationDocuments.mockResolvedValue([])
+    documentApiMocks.getDocuments.mockResolvedValue([])
   })
 
   it('uses Kanban on first visit and switches to the preserved List view', async () => {
@@ -271,7 +287,7 @@ describe('ApplicationTracker view preferences', () => {
     renderTracker()
 
     expect(await screen.findByRole('button', { name: 'List', pressed: true })).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: 'Tracked application records' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Tracked application records' })).toBeInTheDocument()
   })
 
   it('rolls back an optimistic board move when the API update fails', async () => {
